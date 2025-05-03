@@ -49,7 +49,8 @@ def MinTnorm : Tnorm where
         exact h
 
 
-def LukTnorm : Tnorm where
+
+def LukTnorm : LeftContinuousTnorm where
     mul p q := ⟨max 0 (p+q-1), by
         simp
         calc p.1 + q
@@ -135,6 +136,48 @@ def LukTnorm : Tnorm where
             _ ≤ r.1+p := by exact h2
             _ ≤ r+q := by apply add_le_add_left; exact h
         exact h
+    left_cont_x p q := by
+      intro ε he
+      use ε
+      constructor
+      exact he
+      intro r hrl hrg
+      simp
+      apply abs_sub_lt_iff.mpr
+      constructor
+
+      by_cases hr : r.1+q-1 ≤ 0
+      simp [hr]
+      apply neg_lt_of_neg_lt
+      calc -ε
+        _ < 0 := by simp; exact he
+        _ ≤ 0 ⊔ (p.1+q-1) := by exact le_max_left 0 (p.1+q-1)
+
+      apply lt_of_not_ge at hr
+      apply le_of_lt at hr
+      simp [hr]
+      calc (r.1+q-1)-(0 ⊔ (p.1+q-1))
+        _ ≤ (r.1+q-1)-(p.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (p.1+q-1)
+        _ = r.1-p := by ring
+        _ ≤ 0 := by exact tsub_nonpos.mpr hrg;
+        _ < ε := by exact he
+
+      by_cases hp : p.1+q-1 ≤ 0
+      simp [hp]
+      apply neg_lt_of_neg_lt
+      calc -ε
+        _ < 0 := by simp; exact he
+        _ ≤ 0 ⊔ (r.1+q-1) := by apply le_max_left 0 (r.1+q-1);
+
+      apply lt_of_not_ge at hp
+      apply le_of_lt at hp
+      simp [hp]
+      calc (p.1+q-1)-(0 ⊔ (r.1+q-1))
+        _ ≤ (p.1+q-1)-(r.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (r.1+q-1)
+        _ = p.1-r := by ring
+        _ < ε := by exact sub_lt_comm.mp hrl
+
+
 
 
 noncomputable def ProdFuzzy : FuzzyLogic ProdTnorm where
@@ -143,7 +186,7 @@ noncomputable def ProdFuzzy : FuzzyLogic ProdTnorm where
 noncomputable def MinFuzzy : FuzzyLogic MinTnorm where
   and_def p q := by rfl
   imp_def p q := by rfl
-noncomputable def LukFuzzy : FuzzyLogic LukTnorm where
+noncomputable def LukFuzzy : FuzzyLogic LukTnorm.toTnorm where
   and_def p q := by rfl
   imp_def p q := by rfl
 

@@ -1,8 +1,11 @@
 import Tnorms.Defs
 import Tnorms.Examples
 import Tnorms.Basic
+import Tnorms.Structure
 import Mathlib.Topology.UnitInterval
+import Mathlib.Topology.UniformSpace.HeineCantor
 import Mathlib.Topology.Semicontinuous
+
 
 open unitInterval
 
@@ -221,11 +224,8 @@ theorem luk_is_charitable : IsCharitable X Tnorm.LukFuzzy := by
 
 def LowerSemicontinuousTnorm (T : Tnorm) := ∀ p₀ q₀ : I, ∀ ε > 0, ∃ δ > 0, ∀ p q : I,
   p₀.1-δ < p → p ≤ p₀ → q₀.1 - δ < q → q ≤ q₀ → (T.mul p₀ q₀) - (T.mul p q).1 < ε
-def IsLeftContinuousTnorm (T : Tnorm) := ∀ p q : I, ∀ ε > 0, ∃ δ > 0,
-  ∀ r : I, p.1-δ < r → r ≤ p → |(T.mul r q).1 - (T.mul p q)| < ε
 
 -- Proposition 4
--- The converse is also true
 -- I should move this to the LeftContinuousTnorm section when done
 theorem left_cont_iff_lower_semicont_tnorm (T : Tnorm) : IsLeftContinuousTnorm T ↔ LowerSemicontinuousTnorm T := by
     constructor
@@ -347,26 +347,8 @@ The definition of lower semicontinuous that is given in my paper (and in the Tri
   is different from the typical definition.  However, they are equivalent for Tnorms, as we
   demonstrate here.
 -/
-theorem lower_semicont_tnorm_is_lower_semicont : LowerSemicontinuousTnorm T ↔ LowerSemicontinuous T.mul.uncurry := by
-  /-unfold LowerSemicontinuous
-  intro pq
-  unfold LowerSemicontinuousAt
-  intro t
-  intro ht
-  refine Metric.eventually_nhds_iff.mpr ?_-/
-
-  /-let ε := (T.mul pq.1 pq.2).1-t
-  have he : ε > 0 := by exact sub_pos.mpr ht
-  have he2 : ε > 0 := by exact he
-  apply T.left_cont_x at he
-  obtain ⟨δ, hd⟩ := he
-  obtain ⟨hdp, hd⟩ := hd
-  use δ
-  constructor
-  exact_mod_cast hdp
-  intro xy-/
-
-  sorry
+/-theorem lower_semicont_tnorm_is_lower_semicont : LowerSemicontinuousTnorm T ↔ LowerSemicontinuous T.mul.uncurry := by
+  sorry-/
 
 
 variable {T : LeftContinuousTnorm}
@@ -493,27 +475,170 @@ lemma uni_cont_ish_boundary (T : LeftContinuousTnorm) : ∀ ε > 0, ∃ δ > 0, 
       _ = ε := by ring
 
 
+-- Lemma 7
+lemma uni_cont_of_iso (φ : I → I) (hi : Tnorm.IsIsomorphism φ) : UniformContinuous φ := by
+  have h : Continuous φ := by exact Monotone.continuous_of_surjective hi.2 hi.1.2
+  exact CompactSpace.uniformContinuous_of_continuous h
+
+lemma iso_is_strict_mono (φ : I → I) (hi : Tnorm.IsIsomorphism φ) : StrictMono φ := by
+  intro p q hpq
+  apply lt_of_le_of_ne
+  apply le_of_lt at hpq
+  exact hi.2 p q hpq
+
+  have h2 : p ≠ q → φ p ≠ φ q := by
+    contrapose
+    push_neg
+    apply hi.1.1
+  apply h2;
+  exact ne_of_lt hpq
+
+lemma iso_inv_is_iso (φ : I → I) (hi : Tnorm.IsIsomorphism φ) : Tnorm.IsIsomorphism (Function.invFun φ) := by
+  constructor
+  refine Function.bijective_iff_has_inverse.mpr ?_
+  use φ
+  constructor
+  exact Function.rightInverse_invFun hi.1.2
+  exact Function.leftInverse_invFun hi.1.1
+
+  let φ' := Function.invFun φ
+  intro p q
+  contrapose
+  intro hpq
+  apply lt_of_not_ge at hpq
+  apply not_le_of_gt
+  apply_fun φ at hpq
+
+  have hφ : Function.RightInverse φ' φ := by exact Function.rightInverse_invFun hi.1.2
+  let hφ2 := hφ
+  specialize hφ p; specialize hφ2 q;
+  rw [hφ, hφ2] at hpq
+  exact hpq
+  exact iso_is_strict_mono φ hi
+
+
+lemma iso_one (φ : I → I) (hi : Tnorm.IsIsomorphism φ) : φ 1 = 1 := by
+  by_contra h
+  apply unitInterval.lt_one_iff_ne_one.mpr at h
+  have hex : ∃ p : I, φ p = 1 := by exact hi.1.2 1
+  obtain ⟨p, hp⟩ := hex
+  nth_rw 2 [← hp] at h
+
+  let φ' := Function.invFun φ
+  apply_fun φ' at h
+  have hφ : Function.LeftInverse φ' φ := by
+      apply Function.leftInverse_invFun
+      exact hi.1.1
+  let hφ2 := hφ
+  specialize hφ 1
+  specialize hφ2 p
+  rw [hφ, hφ2] at h
+  have h2 : p ≤ 1 := by exact le_one p
+  apply not_lt_of_le at h2
+  contradiction
+
+  exact iso_is_strict_mono φ' (iso_inv_is_iso φ hi)
+
 -- Theorem 8
--- We will likely need to prove some facts about T-norm ismorphisms before proving this
-theorem charitable_is_iso_invariant (T₁ T₂ : Tnorm) (L₁ : FuzzyLogic T₁) (L₂ : FuzzyLogic T₂) :
-  (∃ φ : I → I, Tnorm.IsIsomorphismBetween T₁ T₂ φ) → IsCharitable X L₁ → IsCharitable X L₂ := by
-    sorry
+-- We will likely need to prove some facts about T-norm isomorphisms before proving this
+theorem charitable_is_iso_invariant (T₁ T₂ : LeftContinuousTnorm) (L₁ : FuzzyLogic T₁.toTnorm) (L₂ : FuzzyLogic T₂.toTnorm) :
+  Tnorm.Isomorphic T₁.toTnorm T₂.toTnorm → IsCharitable X L₁ → IsCharitable X L₂ := by
+    intro hi
+    intro h
+    obtain ⟨φ, hi⟩ := hi
+    intro f hf
+    let φ' := Function.invFun φ
+    let g : X → I := φ' ∘ f
+    have hug : UniformContinuous g := by
+      apply UniformContinuous.comp
+      apply uni_cont_of_iso
+      apply iso_inv_is_iso
+      exact hi.left
+      exact hf
+    have hφ : Function.RightInverse φ' φ := by
+      apply Function.rightInverse_invFun
+      exact hi.1.1.2
+    have hfg : f = φ ∘ g := by unfold g; rw [← Function.comp_assoc, Function.RightInverse.id hφ]; rfl
 
 
--- Corollary 9
--- This will require a major structure theorem about T-norms
-theorem charitable_of_nilpotent (L : FuzzyLogic T.toTnorm) : IsNilpotent T.toTnorm → IsCharitable X L := by
-  sorry
+    intro ε he
+    by_cases heh : ε > 1
+    use 1
+    simp
+    calc 1
+      _ ≤ (PrincipleOfCharity L₂ f 1)+1 := by refine tsub_le_iff_right.mp ?_; simp; exact (poc_mem L₂ f 1 one_pos).left
+      _ ≤ (PrincipleOfCharity L₂ f 1)+ε := by refine add_le_add_left ?_ (PrincipleOfCharity L₂ f 1); exact le_of_lt heh
+
+    have heI : ε ∈ I := by
+      apply Set.mem_Icc.mpr
+      constructor
+      exact le_of_lt he
+      exact le_of_not_gt heh
+    have hφ2 : φ (φ' (σ ⟨ε, heI⟩)) = σ ⟨ε, heI⟩ := by exact hφ (σ ⟨ε, heI⟩)
+    specialize h g hug (1- (φ' (σ ⟨ε, heI⟩))) ?_
+    simp
+    apply unitInterval.lt_one_iff_ne_one.mpr
+    apply_fun φ
+    rw [iso_one φ hi.left]
+    rw [hφ2]
+    apply_fun σ
+    rw [symm_symm, symm_one]
+    apply unitInterval.pos_iff_ne_zero.mp
+    exact he
 
 
-/-
-The three main theorems from my paper.  In the paper they are stated as one theorem (Theorem 3),
-  but here we state each of the three directions separately. One could combine these in various
-  ways, but this only makes sense if I anticipate the theorems being used (which I don't).
+    obtain ⟨δ, hdp, hd⟩ := h
+    use δ
+    constructor
+    exact hdp
+    simp at hd
 
-The proof strategy is being developed above
--/
+    unfold PrincipleOfCharity
+    apply le_csInf
+    apply Set.image_nonempty.mpr
+    apply Set.range_nonempty
 
+    intro b hb
+    simp at hb
+    unfold PC_Imp at hb
+    obtain ⟨x, y, hb⟩ := hb
+    by_cases hxy : dist x y < δ
+    simp [hxy, FuzzyLogic.and_def] at hb
+    unfold PrincipleOfCharity at hd
+    have hsnone : (Subtype.val '' Set.range (Function.uncurry (PC_Imp L₁ g δ))).Nonempty := by exact Set.Nonempty.of_subtype
+    apply (le_csInf_iff pc_set_bdd hsnone).mp at hd
+
+    let p : I := L₁.imp (g x) (g y)
+    specialize hd p ?_
+    simp
+    use x
+    use y
+    unfold PC_Imp
+    simp [hxy, FuzzyLogic.and_def]
+    rfl
+
+    unfold p at hd
+    have hd : T₁.mul (φ' (σ ⟨ε, heI⟩)) (g x) ≤ (g y) := by
+      exact (FuzzyLogic.le_imp_iff_and_le L₁ (g x) (g y) (φ' (σ ⟨ε, heI⟩))).mpr hd
+    have hbb : T₂.mul (σ ⟨ε, heI⟩) (f x) ≤ (f y) := by
+      calc T₂.mul (σ ⟨ε, heI⟩) (f x)
+        _ = T₂.mul (σ ⟨ε, heI⟩) (φ (g x)) := by rw [hfg]; rfl
+        _ = T₂.mul (φ (φ' (σ ⟨ε, heI⟩))) (φ (g x)) := by rw [hφ2]
+        _ = φ (T₁.mul (φ' (σ ⟨ε, heI⟩)) (g x)) := by rw [← hi.right]
+        _ ≤ φ (g y) := by apply hi.left.right; exact hd
+        _ = f y := by rw [hfg]; rfl
+    apply (FuzzyLogic.le_imp_iff_and_le L₂ (f x) (f y) (σ ⟨ε, heI⟩)).mp at hbb
+    rw [← hb]
+    exact hbb
+
+    simp [hxy, FuzzyLogic.and_def] at hb
+    rw [← hb]
+    simp
+    exact le_of_lt he
+
+
+
+-- Theorem 6
 omit hexx in theorem uni_cont_of_pocat (L : FuzzyLogic T.toTnorm) (f : X → I) :
   PrincipleOfCharityAlmostTrue X L f → UniformContinuous f := by
 
@@ -568,14 +693,98 @@ omit hexx in theorem uni_cont_of_pocat (L : FuzzyLogic T.toTnorm) (f : X → I) 
 
 
 theorem charitable_of_luk (L : FuzzyLogic T.toTnorm) :
-  (∃ φ : I → I, Tnorm.IsIsomorphismBetween Tnorm.LukTnorm T.toTnorm φ) → IsCharitable X L := by
+  Tnorm.Isomorphic Tnorm.LukTnorm.toTnorm T.toTnorm → IsCharitable X L := by
     intro h
     apply charitable_is_iso_invariant at h
     apply h
     exact luk_is_charitable
     exact hexx
 
+-- Corollary 9
+-- This requires a major structure theorem about T-norms
+theorem charitable_of_nilpotent (L : FuzzyLogic T.toTnorm) : IsNilpotent T.toTnorm → IsCharitable X L := by
+  intro h
+  apply luk_iso_of_nilpt at h
+  apply charitable_of_luk at h
+  exact h
+  exact hexx
 
+
+lemma pocat_for_id (L : FuzzyLogic T.toTnorm) (h : ∃ ε : I, (ε > 0) ∧ (∀ δ > 0, ∃ x y : I, dist x y < δ ∧ (T.mul (σ ε) x) > y)) :
+  ¬ PrincipleOfCharityAlmostTrue I L id := by
+    unfold PrincipleOfCharityAlmostTrue PrincipleOfCharity PC_Imp
+    simp
+    obtain ⟨ε, hep, h⟩ := h
+    use ε
+    constructor
+    exact hep
+    intro δ hdp
+    specialize h δ hdp
+    obtain ⟨x, y, hxy, hmul⟩ := h
+    refine lt_tsub_iff_right.mp ?_
+    refine (csInf_lt_iff ?_ ?_).mpr ?_
+
+    apply bddBelow_def.mpr
+    use 0
+    intro y hy
+    simp at hy
+    obtain ⟨hyp, hy⟩ := hy
+    exact hyp.left
+
+    use (1 : I)
+    simp
+    use 0
+    simp
+    use 0
+    simp [hdp, L.and_def]
+    refine Set.Icc.coe_eq_one.mp ?_
+    exact L.imp_zero 0
+
+    use L.imp x y
+    constructor
+    simp
+    constructor
+    constructor
+    exact nonneg (L.imp x y)
+    exact le_one (L.imp x y)
+    use x
+    use x.2
+    use y
+    use y.2
+    simp [hxy, L.and_def]
+
+    apply lt_of_not_le
+    apply (L.le_imp_iff_and_le x y (σ ε)).not.mp
+    apply not_le_of_lt
+    exact hmul
+
+
+lemma left_tnorm_cases (T : LeftContinuousTnorm) :
+  IsNilpotent T.toTnorm ∨
+  ¬ HasZeroDivisors T.toTnorm ∨
+  HasNontrivialIdempotent T.toTnorm ∨
+  (¬ IsArchimedean T.toTnorm ∧ ¬ HasNontrivialIdempotent T.toTnorm) := by
+    by_cases h : HasNontrivialIdempotent T.toTnorm
+    right; right; left; exact h
+
+    by_cases h2 : ¬HasZeroDivisors T.toTnorm
+    right; left; exact h2
+    rw [not_not] at h2
+
+    by_cases h3: ¬IsArchimedean T.toTnorm
+    right; right; right;
+    constructor; exact h3; exact h
+
+    rw [not_not] at h3
+    left
+    have hc : Continuous T.mul := by exact cont_of_left_cont_arch T h3
+    apply nilpt_or_strict_of_cont_arch at h3
+    apply h3 at hc
+    obtain h4|h4 := hc
+    exact h4
+    apply And.right at h4
+    apply nzd_of_strictly_mono at h4
+    contradiction
 
 /- A question here is can we remove the for all from the implication?
   That is, we have shown that if L is charitable for all X, L must be Luk
@@ -585,6 +794,242 @@ theorem charitable_of_luk (L : FuzzyLogic T.toTnorm) :
   must be not charitable for [0,1].  But the other question is more subtle and
   seems like it could be hard to answer
 -/
+-- Theorem 10
 theorem luk_of_I_charitable (L : FuzzyLogic T.toTnorm) :
-  IsCharitable I L → (∃ φ : I → I, Tnorm.IsIsomorphismBetween Tnorm.LukTnorm T.toTnorm φ) := by
-    sorry
+  IsCharitable I L → Tnorm.Isomorphic Tnorm.LukTnorm.toTnorm T.toTnorm := by
+    intro h
+    apply luk_iso_of_nilpt
+    contrapose h
+
+    unfold IsCharitable
+    simp
+    use id
+    constructor
+    exact fun ⦃U⦄ a ↦ a
+    apply pocat_for_id
+
+    obtain h|h|h|h := left_tnorm_cases T
+    contradiction
+
+
+    -- Case 1: T has no zero divisors
+
+    let ε : I := ⟨1/2, by apply unitInterval.div_mem; simp;simp;simp⟩
+    have he0 : ε ≠ 0 := by
+      refine unitInterval.pos_iff_ne_zero.mp ?_
+      apply gt_iff_lt.mpr
+      apply Subtype.mk_lt_mk.mpr
+      simp
+    have he1 : ε ≠ 1 := by
+      refine unitInterval.lt_one_iff_ne_one.mp ?_
+      apply Subtype.mk_lt_mk.mpr
+      linarith
+
+    use ε
+    constructor
+    apply unitInterval.pos_iff_ne_zero.mpr he0
+
+    intro δ hdp
+    by_cases hd : δ/2 > 1
+
+    use 1
+    use 0
+    constructor
+    calc |1-0|
+      _ = (1:ℝ) := by simp
+      _ < δ := by linarith
+    rw [T.mul_one']
+    refine unitInterval.pos_iff_ne_zero.mpr ?_
+    apply_fun σ
+    rw [symm_symm, symm_zero]
+    exact he1
+
+    have hdI : δ/2 ∈ I := by
+      constructor
+      apply le_of_lt; exact half_pos hdp
+      linarith
+    use ⟨δ/2, hdI⟩
+    use 0
+    constructor
+    calc |(δ/2)-0|
+      _ = δ/2 := by simp; apply le_of_lt; exact half_pos hdp
+      _ < δ := by simp [hdp]
+
+    unfold HasZeroDivisors at h
+    simp at h
+    specialize h (σ ε) (σ ε).2
+    refine unitInterval.pos_iff_ne_zero.mpr ?_
+    apply h
+
+    apply_fun σ
+    rw [symm_symm, symm_zero]
+    exact he1
+
+    refine unitInterval.pos_iff_ne_zero.mp ?_
+    exact half_pos hdp
+    exact hdI
+
+    -- Case 2: T has a nontrivial idempotent
+
+    obtain ⟨e, hent, hem⟩ := h
+    use σ e
+    constructor
+    apply unitInterval.pos_iff_ne_zero.mpr
+    apply_fun σ
+    rw [symm_symm, symm_zero]
+    exact hent.right
+
+    intro δ hdp
+    use e
+    let y : I := ⟨max 0 (e-(δ/2)), by
+      constructor
+      simp
+      simp
+      calc e.1
+        _ ≤ 1 := by exact le_one e
+        _ ≤ 1+(δ/2) := by simp; apply le_of_lt; exact half_pos hdp
+    ⟩
+    use y
+    have hey : y.1 < e := by
+      apply max_lt_iff.mpr
+      constructor
+      exact unitInterval.pos_iff_ne_zero.mpr hent.left
+      simp [hdp]
+    constructor
+    refine max_lt ?_ ?_
+    calc e-y.1
+      _ ≤ e-(e-(δ/2)) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (↑e - δ / 2)
+      _ = δ/2 := by ring
+      _ < δ := by exact div_two_lt_of_pos hdp
+    calc -(e-y.1)
+      _ = y-e := by ring
+      _ < 0 := by exact sub_neg.mpr hey
+      _ < δ := by exact hdp
+
+    rw [symm_symm, hem]
+    exact hey
+
+    -- Case 3: T is non-Archimedean and has no nontrivial idempotents
+
+    obtain ⟨h1, h2⟩ := h
+    unfold IsArchimedean at h1
+    push_neg at h1
+    obtain ⟨p, q, hpnt, hqnt, hpq⟩ := h1
+    let A := Set.range (fun (n : ℕ) => (T.npow n p))
+    have hA : BddBelow (Subtype.val '' A) := by
+      apply bddBelow_def.mpr
+      use 0; intro z hz
+      simp at hz
+      obtain ⟨hz, hzz⟩ := hz
+      exact hz.left
+    let y : I := ⟨sInf (Subtype.val '' A), by
+      constructor
+      refine Real.sInf_nonneg ?_
+      intro x hx
+      simp at hx
+      obtain ⟨hx, hxx⟩ := hx
+      exact hx.left
+
+      refine csInf_le hA ?_
+      simp
+      refine Set.mem_range.mpr ?_
+      use 0
+      simp
+    ⟩
+
+    have hay : y ∉ A := by
+      by_contra hay
+      apply Set.mem_range.mp at hay
+      obtain ⟨n, hn⟩ := hay
+      have yley2 : y ≤ T.mul y y :=
+        calc y.1
+          _ ≤ T.npow (2*n) p := by
+              unfold y;
+              refine csInf_le hA ?_;
+
+              simp
+              constructor
+              exact (T.npow (2*n) p).2
+              apply Set.mem_range.mpr
+              use (2*n)
+          _ = T.mul y y := by rw [two_mul, ← T.npow_add, hn]
+      have yley : y ≥ T.mul y y := by exact T.mul_self_le_self y
+      apply le_antisymm yley2 at yley
+
+      have hynt : y ≠ 0 ∧ y ≠ 1 := by
+        constructor
+        apply unitInterval.pos_iff_ne_zero.mp
+        calc 0
+          _ < q := by exact unitInterval.pos_iff_ne_zero.mpr hqnt.left
+          _ ≤ y := by exact le_of_le_of_eq (hpq n) hn
+        apply unitInterval.lt_one_iff_ne_one.mp
+        calc y
+          _ ≤ p := by
+              unfold y
+              refine csInf_le hA ?_
+              simp
+              constructor
+              exact p.2
+              apply Set.mem_range.mpr
+              use 1
+              exact T.npow_one p
+          _ < 1 := by exact unitInterval.lt_one_iff_ne_one.mpr hpnt.right
+
+      unfold HasNontrivialIdempotent at h2
+      push_neg at h2
+      specialize h2 y hynt
+      rw [← yley] at h2
+      contradiction
+
+
+    use σ p
+    constructor
+    unfold unitInterval.symm
+    apply Subtype.mk_lt_mk.mpr
+    simp
+    apply unitInterval.lt_one_iff_ne_one.mpr
+    exact hpnt.right
+
+    intro δ hd
+    have hexx : ∃ x ∈ (Subtype.val '' A), x < y+δ := by
+      refine Real.lt_sInf_add_pos ?_ hd
+      simp
+      exact Set.range_nonempty fun n ↦ T.npow n p
+    obtain ⟨x, hxA, hxlt⟩ := hexx
+    have hxA2 : x ∈ (Subtype.val '' A) := by exact hxA
+    simp at hxA2
+    obtain ⟨hxI, hxA2⟩ := hxA2
+    obtain ⟨n, hnp⟩ := hxA2
+    simp at hnp
+
+    use ⟨x, hxI⟩
+    use y
+    constructor
+    apply abs_sub_lt_iff.mpr
+    constructor
+
+    simp
+    exact sub_left_lt_of_lt_add hxlt
+    apply sub_left_lt_of_lt_add
+    calc y.1
+      _ ≤ x := by exact csInf_le hA hxA
+      _ < x+δ := by exact lt_add_of_pos_right x hd
+
+    calc y
+      _ < T.npow (n+1) p := by
+          apply lt_of_le_of_ne
+          apply csInf_le hA ?_
+          simp
+          constructor
+          exact (T.npow (n+1) p).2
+          apply Set.mem_range.mpr
+          use (n+1)
+
+          by_contra hynpow
+          have hay2 : y ∈ A := by
+            apply Set.mem_range.mpr
+            use (n+1)
+            symm; exact hynpow
+          contradiction
+      _ = T.mul p (T.npow n p) := by rfl
+      _ = T.mul (σ (σ p)) ⟨x, hxI⟩ := by nth_rw 1 [← unitInterval.symm_symm p, hnp]
