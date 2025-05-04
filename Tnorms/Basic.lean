@@ -1,0 +1,140 @@
+import Tnorms.Defs
+import Mathlib.Topology.UnitInterval
+open unitInterval
+
+namespace Tnorm
+
+variable {T : Tnorm}
+
+theorem mul_le_mul_right : ∀ p q : I, p ≤ q → ∀ r : I, T.mul p r ≤ T.mul q r := by
+    intro p q h r
+    nth_rw 1 [mul_comm]
+    nth_rw 2 [mul_comm]
+    apply mul_le_mul_left
+    exact h
+theorem mul_le_mul : ∀ p q r s : I , p ≤ q → r ≤ s → T.mul p r ≤ T.mul q s := by
+    intro p q r s h h2
+    calc T.mul p r
+        _ ≤ T.mul q r := by apply mul_le_mul_right; exact h
+        _ ≤ T.mul q s := by apply mul_le_mul_left; exact h2
+
+@[simp] theorem mul_one' : ∀ p : I, T.mul p 1 = p := by exact T.mul_one
+@[simp]
+theorem one_mul : ∀ p : I, T.mul 1 p = p := by
+    intro p
+    rw[mul_comm]
+    apply T.mul_one p
+
+@[simp]
+theorem zero_mul (p : I) : T.mul 0 p = 0 := by
+  rw [← le_zero_iff]
+  nth_rw 2 [← T.mul_one 0]
+  apply T.mul_le_mul_left
+  exact le_one p
+
+@[simp]
+theorem mul_zero (p : I) : T.mul p 0 = 0 := by
+    rw[T.mul_comm]
+    simp
+
+theorem mul_self_le_self (p : I) : T.mul p p ≤ p := by
+    nth_rw 3 [← T.one_mul p]
+    apply T.mul_le_mul_right
+    exact le_one p
+
+
+
+
+@[simp] theorem npow_zero (p : I) : T.npow 0 p = 1 := by rfl
+
+theorem npow_succ (n : ℕ) (p : I) : T.npow (n+1) p = T.mul p (T.npow n p) := by rfl
+
+@[simp] theorem npow_one (p : I) : T.npow 1 p = p := by rw [npow_succ]; simp
+
+theorem npow_add (n m : ℕ) (p : I) : T.mul (T.npow n p) (T.npow m p) = T.npow (n+m) p := by
+    induction' m with m ih
+    simp
+
+    rw [T.npow_succ, T.mul_comm, T.mul_assoc]
+    nth_rw 2 [T.mul_comm]
+    rw [ih, ← T.npow_succ, add_assoc]
+
+theorem npow_le_self (n m : ℕ) (p : I) : n ≤ m → T.npow m p ≤ T.npow n p := by
+    intro h
+    induction' m with m ih
+    apply Nat.eq_zero_of_le_zero at h
+    rw [h]
+
+    by_cases hnm : n=m+1
+    rw [hnm]
+
+    apply Nat.lt_of_le_of_ne h at hnm
+    apply Nat.le_of_lt_succ at hnm
+    apply ih at hnm
+    calc T.npow (m+1) p
+        _ = T.mul p (T.npow m p) := by rfl
+        _ ≤ T.mul 1 (T.npow m p) := by apply T.mul_le_mul_right; exact le_one p
+        _ = T.npow m p := by rw [T.one_mul]
+        _ ≤ T.npow n p := by exact hnm
+
+
+theorem npow_le (n : ℕ) (p q : I) : p ≤ q → T.npow n p ≤ T.npow n q := by
+    intro h
+    induction' n with n ih
+    rw [npow_zero, npow_zero];
+
+    apply T.mul_le_mul
+    exact h
+    exact ih
+
+
+
+
+lemma iso_is_strict_mono (φ : I → I) (hi : Isomorphism φ) : StrictMono φ :=
+    Monotone.strictMono_of_injective hi.2 hi.1.1
+
+lemma iso_inv_is_iso (φ : I → I) (hi : Isomorphism φ) : Isomorphism (Function.invFun φ) := by
+  constructor
+  refine Function.bijective_iff_has_inverse.mpr ?_
+  use φ
+  constructor
+  exact Function.rightInverse_invFun hi.1.2
+  exact Function.leftInverse_invFun hi.1.1
+
+  let φ' := Function.invFun φ
+  intro p q
+  contrapose
+  intro hpq
+  apply lt_of_not_ge at hpq
+  apply not_le_of_gt
+  apply_fun φ at hpq
+
+  have hφ : Function.RightInverse φ' φ := by exact Function.rightInverse_invFun hi.1.2
+  let hφ2 := hφ
+  specialize hφ p; specialize hφ2 q;
+  rw [hφ, hφ2] at hpq
+  exact hpq
+  exact iso_is_strict_mono φ hi
+
+
+lemma iso_one (φ : I → I) (hi : Isomorphism φ) : φ 1 = 1 := by
+  by_contra h
+  apply unitInterval.lt_one_iff_ne_one.mpr at h
+  have hex : ∃ p : I, φ p = 1 := by exact hi.1.2 1
+  obtain ⟨p, hp⟩ := hex
+  nth_rw 2 [← hp] at h
+
+  let φ' := Function.invFun φ
+  apply_fun φ' at h
+  have hφ : Function.LeftInverse φ' φ := by
+      apply Function.leftInverse_invFun
+      exact hi.1.1
+  let hφ2 := hφ
+  specialize hφ 1
+  specialize hφ2 p
+  rw [hφ, hφ2] at h
+  have h2 : p ≤ 1 := by exact le_one p
+  apply not_lt_of_le at h2
+  contradiction
+
+  exact iso_is_strict_mono φ' (iso_inv_is_iso φ hi)

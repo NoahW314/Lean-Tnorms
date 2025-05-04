@@ -1,17 +1,11 @@
 import Tnorms.Defs
-import Mathlib.Data.Real.Basic
+import Tnorms.Basic
 import Mathlib.Topology.UnitInterval
 import Mathlib.Topology.Sequences
 open unitInterval
 
 
-def IsContinuousTnorm (T : Tnorm) :=  ∀ x y : ℕ → I, ∀ p q : I,
-  Filter.Tendsto x Filter.atTop (nhds p)
-  → Filter.Tendsto y Filter.atTop (nhds q)
-  → Filter.Tendsto (fun n => T.mul (x n) (y n)) Filter.atTop (nhds (T.mul p q))
-
-
-theorem cont_def (T : Tnorm) : IsContinuousTnorm T ↔ Continuous (Function.uncurry T.mul) := by
+theorem cont_def (T : Tnorm) : T.Continuous ↔ Continuous (Function.uncurry T.mul) := by
   constructor
   intro h
   apply continuous_iff_continuousAt.mpr
@@ -34,12 +28,101 @@ theorem cont_def (T : Tnorm) : IsContinuousTnorm T ↔ Continuous (Function.uncu
 
 lemma mono_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (nhds p)) :
   ∃ a : ℕ → I, Monotone a ∧ (∀ n : ℕ, (a n) ≤ (x n)) ∧ Filter.Tendsto a Filter.atTop (nhds p) := by
-    sorry
+    have hsbdd : ∀ n : ℕ, BddBelow (Subtype.val '' (x '' {m : ℕ | m ≥ n})) := by
+      intro n
+      apply bddBelow_def.mpr
+      use 0
+      intro q hq
+      simp at hq
+      obtain ⟨m, hm, hq⟩ := hq
+      rw [← hq]
+      exact nonneg (x m)
+    have hsnoe : ∀ n : ℕ, (Subtype.val '' (x '' {m : ℕ | m ≥ n})).Nonempty := by
+      intro n
+      refine Set.image_nonempty.mpr ?_
+      apply Set.image_nonempty.mpr
+      use n
+      simp
+    let a : ℕ → I := fun n => ⟨sInf (Subtype.val '' (x '' {m : ℕ | m ≥ n})), by apply inf_mem_I; exact (Set.image_nonempty.mp (hsnoe n))⟩
+    use a
+    constructor
+    · intro n k hnk
+      apply Subtype.mk_le_mk.mpr
+      apply csInf_le_csInf (hsbdd n)
+      exact hsnoe k
+
+      apply Set.image_subset_iff.mpr
+      rw [Set.preimage_image_eq (x '' {m : ℕ | m ≥ n}) Subtype.val_injective]
+      intro q hq
+      simp at hq
+      obtain ⟨m, hm, hq⟩ := hq
+      rw [← hq]
+      simp
+      use m
+      constructor
+      calc n
+        _ ≤ k := by exact hnk
+        _ ≤ m := by exact hm
+      rfl
+    constructor
+    · intro n
+      apply csInf_le (hsbdd n)
+      simp
+      use n
+    · refine Metric.tendsto_atTop.mpr ?_
+      intro ε he
+
+      apply Metric.tendsto_atTop.mp at hx
+      specialize hx (ε/2) (half_pos he)
+      obtain ⟨N, hx⟩ := hx
+      use N
+      intro n hn
+
+      have hanrfl : (a n) ≤ (a n) := by rfl
+      let han := (Real.sInf_le_iff (hsbdd n) (hsnoe n)).mp hanrfl (ε/2) (half_pos he)
+      obtain ⟨q, hq, han⟩ := han
+      simp at hq
+      obtain ⟨m, hm, hq⟩ := hq
+      rw [← hq] at han
+
+      specialize hx m ?_
+      exact Nat.le_trans hn hm
+
+      have hax : |(a n)-(x m).1| < (ε/2) := by
+        apply max_lt
+        calc (a n).1-(x m)
+          _ ≤ 0 := by refine tsub_nonpos.mpr ?_; apply csInf_le (hsbdd n); simp; use m
+          _ < ε/2 := by exact half_pos he
+        rw [neg_sub]
+        exact sub_left_lt_of_lt_add han
+      calc |(a n)-p.1|
+        _ ≤ |(a n)-(x m).1|+|(x m)-p.1| := by apply abs_sub_le
+        _ < |(a n)-(x m).1|+(ε/2) := by exact (Real.add_lt_add_iff_left |↑(a n) - ↑(x m)|).mpr hx
+        _ < (ε/2)+(ε/2) := by apply (add_lt_add_iff_right (ε/2)).mpr hax
+        _ = ε := by apply add_halves
+
+
 lemma anti_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (nhds p)) :
   ∃ a : ℕ → I, Antitone a ∧ (∀ n : ℕ, (x n) ≤ (a n)) ∧ Filter.Tendsto a Filter.atTop (nhds p) := by
-    sorry
+    let x' : ℕ → I := σ ∘ x
+    let ha := mono_of_conv (continuous_iff_seqContinuous.mp continuous_symm hx)
+    obtain ⟨a', ha⟩ := ha
+    use σ ∘ a'
+    constructor
+    intro n m hnm
+    apply symm_le_symm.mpr
+    exact ha.1 hnm
 
-theorem cont_both_vars {T : Tnorm} : IsContinuousTnorm T ↔
+    constructor
+    intro n
+    apply le_symm_comm.mpr
+    exact ha.2.1 n
+
+    rw [← symm_symm p]
+    apply continuous_iff_seqContinuous.mp continuous_symm
+    exact ha.2.2
+
+theorem cont_both_vars {T : Tnorm} : T.Continuous ↔
   (∀ p : I, Continuous (fun q : I => T.mul p q)) ∧ (∀ p : I, Continuous (fun q : I => T.mul q p)) := by
     constructor
     intro h
@@ -161,7 +244,7 @@ theorem cont_both_vars {T : Tnorm} : IsContinuousTnorm T ↔
             _ ≤ x k := by exact ha.2.1 k
 
 
-theorem cont_one_var (T : Tnorm) : IsContinuousTnorm T ↔
+theorem cont_one_var (T : Tnorm) : T.Continuous ↔
   ∀ p : I, Continuous (fun q : I => T.mul p q) := by
     constructor
     intro h

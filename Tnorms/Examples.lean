@@ -1,6 +1,7 @@
 import Tnorms.Defs
+import Tnorms.Continuity
+import Tnorms.FuzzyLogic
 import Mathlib.Topology.UnitInterval
-
 open unitInterval
 
 /-
@@ -13,7 +14,7 @@ define some basic T-norms:
 -/
 namespace Tnorm
 
-def ProdTnorm : Tnorm where
+def ProdTnorm' : Tnorm where
   mul p q := ⟨p*q, unitInterval.mul_mem p.2 q.2⟩
   mul_assoc p q r := by
     simp
@@ -29,8 +30,13 @@ def ProdTnorm : Tnorm where
     apply_mod_cast Real.orderedSemiring.mul_le_mul_of_nonneg_left p q r
     exact h
     exact nonneg r
+/-theorem prod_cont : ProdTnorm'.Continuous := by
+  apply (cont_def ProdTnorm').mpr
+  sorry
+def ProdTnorm : ContinuousTnorm := ProdTnorm'.toContinuousTnorm prod_cont-/
+def ProdTnorm := ProdTnorm'
 
-def MinTnorm : Tnorm where
+def MinTnorm' : Tnorm where
     mul p q := min p q
     mul_assoc p q r := by
         simp
@@ -47,10 +53,11 @@ def MinTnorm : Tnorm where
         simp
         right
         exact h
+theorem min_cont : MinTnorm'.Continuous := (cont_def MinTnorm').mpr continuous_min
+def MinTnorm : ContinuousTnorm := MinTnorm'.toContinuousTnorm min_cont
 
 
-
-def LukTnorm : LeftContinuousTnorm where
+def LukTnorm' : Tnorm where
     mul p q := ⟨max 0 (p+q-1), by
         simp
         calc p.1 + q
@@ -136,46 +143,52 @@ def LukTnorm : LeftContinuousTnorm where
             _ ≤ r.1+p := by exact h2
             _ ≤ r+q := by apply add_le_add_left; exact h
         exact h
-    left_cont_x p q := by
-      intro ε he
-      use ε
-      constructor
-      exact he
-      intro r hrl hrg
-      simp
-      apply abs_sub_lt_iff.mpr
-      constructor
 
-      by_cases hr : r.1+q-1 ≤ 0
-      simp [hr]
-      apply neg_lt_of_neg_lt
-      calc -ε
-        _ < 0 := by simp; exact he
-        _ ≤ 0 ⊔ (p.1+q-1) := by exact le_max_left 0 (p.1+q-1)
+theorem luk_cont : LukTnorm'.Continuous := by
+  sorry
+def LukTnorm : ContinuousTnorm := LukTnorm'.toContinuousTnorm luk_cont
 
-      apply lt_of_not_ge at hr
-      apply le_of_lt at hr
-      simp [hr]
-      calc (r.1+q-1)-(0 ⊔ (p.1+q-1))
-        _ ≤ (r.1+q-1)-(p.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (p.1+q-1)
-        _ = r.1-p := by ring
-        _ ≤ 0 := by exact tsub_nonpos.mpr hrg;
-        _ < ε := by exact he
 
-      by_cases hp : p.1+q-1 ≤ 0
-      simp [hp]
-      apply neg_lt_of_neg_lt
-      calc -ε
-        _ < 0 := by simp; exact he
-        _ ≤ 0 ⊔ (r.1+q-1) := by apply le_max_left 0 (r.1+q-1);
+/-left_cont_x p q := by
+intro ε he
+use ε
+constructor
+exact he
+intro r hrl hrg
+simp
+apply abs_sub_lt_iff.mpr
+constructor
 
-      apply lt_of_not_ge at hp
-      apply le_of_lt at hp
-      simp [hp]
-      calc (p.1+q-1)-(0 ⊔ (r.1+q-1))
-        _ ≤ (p.1+q-1)-(r.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (r.1+q-1)
-        _ = p.1-r := by ring
-        _ < ε := by exact sub_lt_comm.mp hrl
+by_cases hr : r.1+q-1 ≤ 0
+simp [hr]
+apply neg_lt_of_neg_lt
+calc -ε
+  _ < 0 := by simp; exact he
+  _ ≤ 0 ⊔ (p.1+q-1) := by exact le_max_left 0 (p.1+q-1)
+
+apply lt_of_not_ge at hr
+apply le_of_lt at hr
+simp [hr]
+calc (r.1+q-1)-(0 ⊔ (p.1+q-1))
+  _ ≤ (r.1+q-1)-(p.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (p.1+q-1)
+  _ = r.1-p := by ring
+  _ ≤ 0 := by exact tsub_nonpos.mpr hrg;
+  _ < ε := by exact he
+
+by_cases hp : p.1+q-1 ≤ 0
+simp [hp]
+apply neg_lt_of_neg_lt
+calc -ε
+  _ < 0 := by simp; exact he
+  _ ≤ 0 ⊔ (r.1+q-1) := by apply le_max_left 0 (r.1+q-1);
+
+apply lt_of_not_ge at hp
+apply le_of_lt at hp
+simp [hp]
+calc (p.1+q-1)-(0 ⊔ (r.1+q-1))
+  _ ≤ (p.1+q-1)-(r.1+q-1) := by refine sub_le_sub ?_ ?_; rfl; exact le_max_right 0 (r.1+q-1)
+  _ = p.1-r := by ring
+  _ < ε := by exact sub_lt_comm.mp hrl-/
 
 
 
@@ -183,7 +196,7 @@ def LukTnorm : LeftContinuousTnorm where
 noncomputable def ProdFuzzy : FuzzyLogic ProdTnorm where
   and_def p q := by rfl
   imp_def p q := by rfl
-noncomputable def MinFuzzy : FuzzyLogic MinTnorm where
+noncomputable def MinFuzzy : FuzzyLogic MinTnorm.toTnorm where
   and_def p q := by rfl
   imp_def p q := by rfl
 noncomputable def LukFuzzy : FuzzyLogic LukTnorm.toTnorm where
@@ -192,29 +205,72 @@ noncomputable def LukFuzzy : FuzzyLogic LukTnorm.toTnorm where
 
 
 
-/-noncomputable
+noncomputable
 def DrasticTnorm : Tnorm where
     mul p q := if p = 1 ∨ q = 1 then min p q
-                --else if q = 1 then p
                 else 0
-    mul_assoc p q r := sorry
+    mul_assoc p q r := by
+      by_cases hp : p = 1
+      by_cases hq : q = 1
+      simp [hp, hq]
+
+      by_cases hr : r = 1
+      simp [hp, hq, hr, min_comm]
+
+      have hq2 : ¬1 ≤ q := by apply not_le_of_lt; apply unitInterval.lt_one_iff_ne_one.mpr hq
+      simp [hp, hq, hq2, hr]
+
+      by_cases hq : q = 1
+      by_cases hr : r = 1
+      simp [hp, hq, hr]
+
+      have hp2 : ¬1 ≤ p := by apply not_le_of_lt; apply unitInterval.lt_one_iff_ne_one.mpr hp
+      have hr2 : ¬1 ≤ r := by apply not_le_of_lt; apply unitInterval.lt_one_iff_ne_one.mpr hr
+      simp [hp, hq, hr, hp2, hr2]
+
+      by_cases hr : r = 1
+      have hq2 : ¬1 ≤ q := by apply not_le_of_lt; apply unitInterval.lt_one_iff_ne_one.mpr hq
+      simp [hp, hq, hr, hq2]
+
+      simp [hp, hq, hr]
     mul_comm p q := by
-        simp
-        rw [min_comm]
-        by_cases h : p=1 ∨ q=1
+        by_cases h : p = 1 ∨ q = 1
+        have h2 : q = 1 ∨ p = 1 := by exact id (Or.symm h)
+        simp [h, h2]
+        exact min_comm p q
 
-
+        have h2 : ¬(q = 1 ∨ p = 1) := by exact fun a ↦ h (id (Or.symm a))
+        simp [h, h2]
     mul_one p := by
         simp
         exact le_one p
-    mul_le_mul_left p q r := sorry
--/
+    mul_le_mul_left p q h r := by
+      by_cases hr : r = 1
+      simp [hr]
+      right
+      exact h
+
+      by_cases hq : q = 1
+      simp [hr, hq]
+      constructor
+      by_cases hp : p = 1
+      simp [hp]
+      simp [hp]
+
+      by_cases hp : p = 1
+      simp [hp]
+      simp [hp]
+
+      have hq2 : q < 1 := by apply unitInterval.lt_one_iff_ne_one.mpr hq
+      have hp : ¬p=1 := by apply unitInterval.lt_one_iff_ne_one.mp; calc p
+        _ ≤ q := by exact h
+        _ < 1 := by exact hq2
+      simp [hr, hq, hp]
 
 
 
 lemma luk_imp_min (p q : I) : Tnorm.LukFuzzy.imp p q = min 1 (1 - p.1 + q) := by
   rw [Tnorm.LukFuzzy.imp_def]
-  unfold FuzzyLogic.Timp
   refine csSup_eq_of_is_forall_le_of_forall_le_imp_ge ?_ ?_ ?_
 
   use 0
