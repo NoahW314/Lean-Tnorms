@@ -260,3 +260,28 @@ theorem cont_one_var (T : Tnorm) : T.Continuous ↔
     have hfun : ∀ q : I, (fun q => T.mul p q) q = (fun q => T.mul q p) q := by intro q; exact T.mul_comm p q
     apply (continuous_congr hfun).mp
     exact h
+
+theorem cont_iff_left_right (T : Tnorm) : T.Continuous ↔ (T.LeftContinuous ∧ T.RightContinuous) := by
+  constructor
+  intro h
+  constructor
+  exact T.left_cont_of_cont h
+  exact T.right_cont_of_cont h
+
+  intro ⟨hl, hr⟩
+  intro x y p q hx hy
+
+  let ⟨a, ha⟩ := mono_of_conv hx; let ⟨b, hb⟩ := anti_of_conv hx
+  let ⟨c, hc⟩ := mono_of_conv hy; let ⟨d, hd⟩ := anti_of_conv hy
+
+  let hbel := hl a c p q ha.1 hc.1 ha.2.2 hc.2.2
+  let habo := hr b d p q hb.1 hd.1 hb.2.2 hd.2.2
+  apply tendsto_of_tendsto_of_tendsto_of_le_of_le hbel habo
+
+  intro n; simp
+  apply T.mul_le_mul
+  exact ha.2.1 n; exact hc.2.1 n
+
+  intro n; simp
+  apply T.mul_le_mul
+  exact hb.2.1 n; exact hd.2.1 n

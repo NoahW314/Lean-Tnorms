@@ -37,12 +37,14 @@ theorem mul_zero (p : I) : T.mul p 0 = 0 := by
     rw[T.mul_comm]
     simp
 
-theorem mul_self_le_self (p : I) : T.mul p p ≤ p := by
-    nth_rw 3 [← T.one_mul p]
-    apply T.mul_le_mul_right
-    exact le_one p
+theorem mul_le_left (p q : I) : T.mul p q ≤ p := by
+    nth_rw 2 [← T.mul_one' p]
+    apply T.mul_le_mul_left
+    exact le_one q
+theorem mul_le_right (p q : I) : T.mul p q ≤ q := by rw [T.mul_comm]; exact mul_le_left q p
+theorem mul_le_min (p q : I) : T.mul p q ≤ p ⊓ q := le_inf (mul_le_left p q) (mul_le_right p q)
 
-
+theorem mul_self_le_self (p : I) : T.mul p p ≤ p := mul_le_left p p
 
 
 @[simp] theorem npow_zero (p : I) : T.npow 0 p = 1 := by rfl
@@ -50,6 +52,8 @@ theorem mul_self_le_self (p : I) : T.mul p p ≤ p := by
 theorem npow_succ (n : ℕ) (p : I) : T.npow (n+1) p = T.mul p (T.npow n p) := by rfl
 
 @[simp] theorem npow_one (p : I) : T.npow 1 p = p := by rw [npow_succ]; simp
+
+@[simp] theorem npow_two (p : I) : T.npow 2 p = T.mul p p := by rw[npow_succ, npow_one]
 
 theorem npow_add (n m : ℕ) (p : I) : T.mul (T.npow n p) (T.npow m p) = T.npow (n+m) p := by
     induction' m with m ih

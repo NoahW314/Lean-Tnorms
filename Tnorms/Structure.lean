@@ -2,7 +2,9 @@ import Tnorms.Defs
 import Tnorms.Basic
 import Tnorms.Examples
 import Tnorms.Algebra
+import Tnorms.LeftContinuity
 import Tnorms.Continuity
+import Tnorms.LeftContinuousArchimedean
 
 import Mathlib.Topology.UnitInterval
 

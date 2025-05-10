@@ -603,16 +603,9 @@ lemma left_tnorm_cases (T : LeftContinuousTnorm) :
 theorem not_charitable_of_nzds (T : Tnorm) : ¬ HasZeroDivisors T →
   ∃ ε > 0, ∀ δ > 0, ∃ x y, dist x y < δ ∧ T.mul (σ ε) x > y := by
     intro h
-    let ε : I := ⟨1/2, by apply unitInterval.div_mem; simp;simp;simp⟩
-    have he0 : ε ≠ 0 := by
-      refine unitInterval.pos_iff_ne_zero.mp ?_
-      apply gt_iff_lt.mpr
-      apply Subtype.mk_lt_mk.mpr
-      simp
-    have he1 : ε ≠ 1 := by
-      refine unitInterval.lt_one_iff_ne_one.mp ?_
-      apply Subtype.mk_lt_mk.mpr
-      linarith
+    let ε : I := ⟨1/2, half_mem_I⟩
+    have he0 : ε ≠ 0 := half_nontrivial.1
+    have he1 : ε ≠ 1 := half_nontrivial.2
 
     use ε
     constructor
