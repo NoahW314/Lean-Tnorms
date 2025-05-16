@@ -14,9 +14,110 @@ section namespace Tnorm
   ∀ p q : I, p₀.1-δ < p → p ≤ p₀ → q₀-δ < q → q ≤ q₀ → (T.mul p₀ q₀).1-ε < T.mul p q
 end Tnorm
 
--- This is optional.  I don't need it.  It just squares this definition with the usual one
-/-theorem lower_semi_def (T : Tnorm) : T.LowerSemicontinuous ↔ LowerSemicontinuous (Function.uncurry T.mul) := by
-  sorry-/
+
+theorem lower_semi_def (T : Tnorm) : T.LowerSemicontinuous ↔ LowerSemicontinuous (Function.uncurry T.mul) := by
+  constructor
+  intro h (p, q) r hr
+  refine Metric.eventually_nhds_iff.mpr ?_
+  simp at hr
+  specialize h p q ((T.mul p q).1 - r) ?_
+  simp [hr]
+  obtain ⟨δ, hdp, h⟩ := h
+  use δ
+  constructor
+  exact hdp
+  intro (p', q') hdist; rw [Function.uncurry_apply_pair]
+  by_cases hp : p < p'
+  by_cases hq : q < q'
+
+  apply lt_of_lt_of_le hr
+  apply T.mul_le_mul p p' q q' (le_of_lt hp) (le_of_lt hq)
+
+  push_neg at hq
+  specialize h p q' ?_ ?_ ?_ hq
+  exact sub_lt_self (↑p) hdp; rfl
+  apply sub_lt_comm.mp
+  rw [Prod.dist_eq] at hdist
+  simp at hdist
+  let hdist := hdist.2
+  apply Metric.mem_ball'.mp at hdist
+  apply lt_of_abs_lt hdist
+  simp at h
+  apply lt_of_lt_of_le h (T.mul_le_mul p p' q' q' (le_of_lt hp) ?_); rfl
+
+  push_neg at hp
+  by_cases hq : q < q'
+  specialize h p' q ?_ hp ?_ ?_
+  rw [Prod.dist_eq] at hdist
+  simp at hdist
+  let hdist := hdist.1
+  apply Metric.mem_ball'.mp at hdist
+  apply sub_lt_comm.mp
+  apply lt_of_abs_lt hdist
+  exact sub_lt_self (↑q) hdp; rfl
+  simp at h
+  apply lt_of_lt_of_le h (T.mul_le_mul p' p' q q' ?_ (le_of_lt hq)); rfl
+
+  push_neg at hq
+  rw [Prod.dist_eq] at hdist
+  simp at hdist
+  let h1 := hdist.1; let h2 := hdist.2
+  apply Metric.mem_ball'.mp at h1; apply Metric.mem_ball'.mp at h2
+  specialize h p' q' ?_ hp ?_ hq
+  apply sub_lt_comm.mp
+  apply lt_of_abs_lt h1
+  apply sub_lt_comm.mp
+  apply lt_of_abs_lt h2
+  simp at h
+  exact h
+
+
+
+  intro h
+  intro p₀ q₀ ε he
+  by_cases h1 : ε > (T.mul p₀ q₀)
+  use 1; constructor; exact Real.zero_lt_one
+  intro p q hpl hpg hql hqg
+  calc (T.mul p₀ q₀).1 - ε
+    _ < 0 := by apply sub_neg.mpr h1
+    _ ≤ T.mul p q := nonneg (T.mul p q)
+
+  push_neg at h1
+  have hmI : (T.mul p₀ q₀).1 - ε ∈ I := by
+    simp
+    constructor
+    exact h1
+    apply le_trans (le_one (T.mul p₀ q₀)); simp; exact le_of_lt he
+  specialize h (p₀, q₀) ⟨(T.mul p₀ q₀).1 - ε, hmI⟩ ?_
+  apply Subtype.mk_lt_mk.mpr
+  simp; exact he
+
+  apply Metric.eventually_nhds_iff.mp at h
+  obtain ⟨δ, hdp, h⟩ := h
+  use δ
+  constructor
+  exact hdp
+  intro p q hpl hpg hql hqg
+  have hdist : dist (p, q) (p₀, q₀) < δ := by
+    rw [Prod.dist_eq]
+    apply max_lt_iff.mpr
+    constructor
+    simp
+    apply abs_sub_lt_iff.mpr
+    constructor
+    apply lt_of_le_of_lt ?_ hdp
+    exact tsub_nonpos.mpr hpg
+    apply sub_lt_comm.mp hpl
+
+    simp
+    apply abs_sub_lt_iff.mpr
+    constructor
+    apply lt_of_le_of_lt ?_ hdp
+    exact tsub_nonpos.mpr hqg
+    apply sub_lt_comm.mp hql
+  specialize h hdist
+  simp at h
+  exact h
 
 
 lemma nat_approach_mem {p : I} {n : ℕ} : (max 0 (p.1- 1/(n+1))) ∈ I := by
@@ -162,10 +263,21 @@ theorem left_cont_lower_semi (T : Tnorm) : T.LeftContinuous ↔ T.LowerSemiconti
     apply sub_lt_comm.mp
     exact h
 
-theorem left_cont_sup (T : LeftContinuousTnorm) (S : Set I) (hs : S.Nonempty) : ∀ q : I,
+theorem left_cont_sup (T : LeftContinuousTnorm) (S : Set I) : ∀ q : I,
   sSup (Subtype.val '' Set.range (fun (s : S) => T.mul s q))
-  = T.mul ⟨sSup (Subtype.val '' S), by apply sup_mem_I S hs⟩ q := by
+  = T.mul ⟨sSup (Subtype.val '' S), sup_mem_I⟩ q := by
     intro q
+    by_cases hs : S.Nonempty
+    swap
+    push_neg at hs
+    conv => rhs
+            rw [hs]
+    simp
+    have h : (Subtype.val '' Set.range (fun (s : S) => T.mul s q)) = ∅ := by simp [hs]
+    rw [h]
+    apply Real.sSup_empty
+
+
     have hsbdd : BddAbove (Subtype.val '' S) := by
       apply bddAbove_def.mpr
       use 1
@@ -201,7 +313,7 @@ theorem left_cont_sup (T : LeftContinuousTnorm) (S : Set I) (hs : S.Nonempty) : 
     intro ε he
     let hT := T.left_cont
     apply (left_cont_lower_semi T.toTnorm).mp at hT
-    let r : I := ⟨sSup (Subtype.val '' S), by apply sup_mem_I S hs⟩
+    let r : I := ⟨sSup (Subtype.val '' S), sup_mem_I⟩
     specialize hT r q ε he
     obtain ⟨δ, hd, hT⟩ := hT
     have ha : ∃ a ∈ (Subtype.val '' S), r+(-δ) < a := by

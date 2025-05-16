@@ -43,7 +43,7 @@ lemma mono_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (
       apply Set.image_nonempty.mpr
       use n
       simp
-    let a : ℕ → I := fun n => ⟨sInf (Subtype.val '' (x '' {m : ℕ | m ≥ n})), by apply inf_mem_I; exact (Set.image_nonempty.mp (hsnoe n))⟩
+    let a : ℕ → I := fun n => ⟨sInf (Subtype.val '' (x '' {m : ℕ | m ≥ n})), inf_mem_I⟩
     use a
     constructor
     · intro n k hnk

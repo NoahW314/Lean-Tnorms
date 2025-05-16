@@ -6,17 +6,9 @@ open unitInterval
 
 structure FuzzyLogic (T : Tnorm) where
     and : I → I → I := T.mul
-    imp : I → I → I := fun p q => ⟨sSup (Subtype.val '' {r : I | T.mul p r ≤ q}), by
-        apply sup_mem_I {r : I | T.mul p r ≤ q}
-        apply Set.nonempty_def.mpr
-        use 0; simp
-        ⟩
+    imp : I → I → I := fun p q => ⟨sSup (Subtype.val '' {r : I | T.mul p r ≤ q}), sup_mem_I⟩
     and_def : ∀ p q : I, and p q = T.mul p q
-    imp_def : ∀ p q : I, imp p q = ⟨sSup (Subtype.val '' {r : I | T.mul p r ≤ q}), by
-        apply sup_mem_I {r : I | T.mul p r ≤ q}
-        apply Set.nonempty_def.mpr
-        use 0; simp
-        ⟩
+    imp_def : ∀ p q : I, imp p q = ⟨sSup (Subtype.val '' {r : I | T.mul p r ≤ q}), sup_mem_I⟩
 
 section namespace FuzzyLogic
 
@@ -67,10 +59,7 @@ lemma and_imp {T : LeftContinuousTnorm} {L : FuzzyLogic T.toTnorm} (p q : I) : T
 
     have h : T.mul p (L.imp p q) ≤ sSup (Subtype.val '' Set.range (fun (s : S) => T.mul s p)) := by
         rw [L.imp_def, T.mul_comm]
-        rw [← left_cont_sup T S ?_ p]
-        use 0
-        unfold S
-        simp
+        rw [← left_cont_sup T S p]
 
     apply le_trans h
     refine Real.sSup_le ?_ ?_

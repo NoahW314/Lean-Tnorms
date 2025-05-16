@@ -91,7 +91,10 @@ theorem npow_le (n : ℕ) (p q : I) : p ≤ q → T.npow n p ≤ T.npow n q := b
     exact h
     exact ih
 
-
+theorem npow_mul (n m : ℕ) (p : I) : T.npow m (T.npow n p) = T.npow (m*n) p := by
+    induction' m with m ih
+    rw [Nat.zero_mul, npow_zero, npow_zero]
+    rw [← npow_add, npow_one, Nat.succ_mul, ← npow_add, ih]
 
 
 lemma iso_is_strict_mono (φ : I → I) (hi : Isomorphism φ) : StrictMono φ :=

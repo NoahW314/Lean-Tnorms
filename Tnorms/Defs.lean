@@ -11,16 +11,25 @@ structure Tnorm where
     mul_le_mul_left : ∀ p q : I, p ≤ q → ∀ r : I, mul r p ≤ mul r q
 
 
-theorem sup_mem_I (S : Set I) (h : S.Nonempty) : sSup (Subtype.val '' S) ∈ I := by
+theorem sup_mem_I {S : Set I} : sSup (Subtype.val '' S) ∈ I := by
+    by_cases hs : S.Nonempty
     rw [← Set.Icc.coe_sSup]
     apply Subtype.coe_prop
     exact zero_le_one' ℝ
-    exact h
-theorem inf_mem_I (S : Set I) (h : S.Nonempty) : sInf (Subtype.val '' S) ∈ I := by
+    exact hs
+
+    push_neg at hs
+    rw [hs]; simp
+
+theorem inf_mem_I {S : Set I} : sInf (Subtype.val '' S) ∈ I := by
+    by_cases hs : S.Nonempty
     rw [← Set.Icc.coe_sInf]
     apply Subtype.coe_prop
     exact zero_le_one' ℝ
-    exact h
+    exact hs
+
+    push_neg at hs
+    rw [hs]; simp
 
 section namespace Tnorm
 

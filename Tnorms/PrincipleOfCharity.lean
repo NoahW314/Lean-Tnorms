@@ -583,13 +583,7 @@ lemma left_tnorm_cases (T : LeftContinuousTnorm) :
     rw [not_not] at h3
     left
     have hc : T.Continuous := by exact cont_of_left_cont_arch T h3
-    apply nilpt_or_strict_of_cont_arch at h3
-    apply h3 at hc
-    obtain h4|h4 := hc
-    exact h4
-    apply And.right at h4
-    apply nzd_of_strictly_mono at h4
-    contradiction
+    apply nilpt_of_cont_arch_zd T.toTnorm hc h3 h2
 
 /- A question here is can we remove the for all from the implication?
   That is, we have shown that if L is charitable for all X, L must be Luk

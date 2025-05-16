@@ -100,7 +100,7 @@ def HasNontrivialIdempotent := ∃ p : I, IsNontrivial p ∧ T.mul p p = p
 def HasNilpotent := ∃ p : I, IsNontrivial p ∧ ∃ n : ℕ, T.npow n p = 0
 def HasZeroDivisors := ∃ p q : I, p ≠ 0 ∧ q ≠ 0 ∧ T.mul p q = 0
 
-lemma zd_iff_nilpt_el : HasNilpotent T ↔ HasZeroDivisors T := by
+lemma nilpt_el_iff_zd : HasNilpotent T ↔ HasZeroDivisors T := by
   constructor
   intro h
   obtain ⟨p, hpnt, h⟩ := h
@@ -252,7 +252,7 @@ lemma half_nontrivial : IsNontrivial ⟨1/2, half_mem_I⟩ := by
   refine coe_ne_zero.mp ?_; simp
   refine coe_ne_one.mp ?_; simp
 
-lemma zd_of_nilpt : Nilpotent T → HasNilpotent T := by
+lemma nilpt_el_of_nilpt : Nilpotent T → HasNilpotent T := by
   intro h
   use ⟨1/2, half_mem_I⟩
   constructor
@@ -281,7 +281,7 @@ lemma nntid_of_nilpt : Nilpotent T → ¬ HasNontrivialIdempotent T := by
 
 -- I shouldn't have to prove this, but the mathlib implementation doesn't seem to work
 theorem monotone_convergence (x : ℕ → I) (h : Antitone x) : ∃ a : I, Filter.Tendsto x Filter.atTop (nhds a) := by
-  use ⟨sInf (Subtype.val '' Set.range x), inf_mem_I (Set.range x) (Set.range_nonempty x)⟩
+  use ⟨sInf (Subtype.val '' Set.range x), inf_mem_I⟩
   refine Metric.tendsto_atTop.mpr ?_
   intro ε he
   have hnonem : (Subtype.val '' Set.range x).Nonempty := by
@@ -467,3 +467,22 @@ lemma arch_of_strict : Strict T → IsArchimedean T := by
   apply arch_of_cont_nntid
   apply nntid_of_strictly_mono T h2
   exact Tnorm.right_cont_of_cont T h1
+
+
+theorem nilpt_of_cont_arch_zd (T : Tnorm) : T.Continuous → IsArchimedean T → HasZeroDivisors T → Nilpotent T := by
+  intro hc h hzd
+  constructor
+  exact hc
+  apply (nilpt_el_iff_zd T).mpr at hzd
+  obtain ⟨a, hant, n, hpow⟩ := hzd
+  intro p hpnt
+
+  specialize h p a hpnt hant
+  obtain ⟨m, harch⟩ := h
+  use (m*n)
+  rw [mul_comm]
+  rw [← T.npow_mul]
+  apply le_zero_iff.mp
+  calc T.npow n (T.npow m p)
+    _ ≤ T.npow n a := by apply T.npow_le n (T.npow m p) a (le_of_lt harch)
+    _ = 0 := hpow
