@@ -120,6 +120,7 @@ theorem lower_semi_def (T : Tnorm) : T.LowerSemicontinuous ↔ LowerSemicontinuo
   exact h
 
 
+
 lemma nat_approach_mem {p : I} {n : ℕ} : (max 0 (p.1- 1/(n+1))) ∈ I := by
     simp
     calc p.1
@@ -180,10 +181,10 @@ lemma nat_approach_lim {p : I} : Filter.Tendsto (nat_approach p) Filter.atTop (n
         _ < (N+1)*ε := by linarith
 
 
+
 theorem left_cont_lower_semi (T : Tnorm) : T.LeftContinuous ↔ T.LowerSemicontinuous := by
     constructor
-    intro h
-    intro p₀ q₀ ε he
+    intro h p₀ q₀ ε he
     let x : ℕ → I := nat_approach p₀
     let y : ℕ → I := nat_approach q₀
 
@@ -264,8 +265,8 @@ theorem left_cont_lower_semi (T : Tnorm) : T.LeftContinuous ↔ T.LowerSemiconti
     exact h
 
 theorem left_cont_sup (T : LeftContinuousTnorm) (S : Set I) : ∀ q : I,
-  sSup (Subtype.val '' Set.range (fun (s : S) => T.mul s q))
-  = T.mul ⟨sSup (Subtype.val '' S), sup_mem_I⟩ q := by
+  sSup (Set.range (fun (s : S) => T.mul s q))
+  = T.mul (sSup S) q := by
     intro q
     by_cases hs : S.Nonempty
     swap
@@ -273,78 +274,41 @@ theorem left_cont_sup (T : LeftContinuousTnorm) (S : Set I) : ∀ q : I,
     conv => rhs
             rw [hs]
     simp
-    have h : (Subtype.val '' Set.range (fun (s : S) => T.mul s q)) = ∅ := by simp [hs]
+    have h : Set.range (fun (s : S) => T.mul s q) = ∅ := by
+      simp only [Set.range_eq_empty_iff, hs, Set.isEmpty_coe_sort]
     rw [h]
-    apply Real.sSup_empty
-
-
-    have hsbdd : BddAbove (Subtype.val '' S) := by
-      apply bddAbove_def.mpr
-      use 1
-      intro y hy
-      simp at hy
-      exact hy.1.2
-
-    refine csSup_eq_of_is_forall_le_of_forall_le_imp_ge ?_ ?_ ?_
-    refine Set.Nonempty.image Subtype.val ?_
-    refine Set.range_nonempty_iff_nonempty.mpr ?_
-    exact Set.Nonempty.to_subtype hs
+    have hbot : (⊥ : I) = 0 := rfl
+    rw [sSup_empty, hbot, T.zero_mul]
 
 
 
+    refine sSup_eq_of_forall_le_of_forall_lt_exists_gt ?_ ?_
     intro b hb
-    simp at hb
-    obtain ⟨hbI, r, hrI, hrS, hb⟩ := hb
-    apply Subtype.mk_eq_mk.mp at hb
-    rw_mod_cast [← hb]
-    apply Subtype.mk_le_mk.mpr
+    simp only [Set.mem_range, Subtype.exists, exists_prop, Set.mem_Icc] at hb
+    obtain ⟨a, hbI, haS, hb, _⟩ := hb
     apply T.mul_le_mul_right
-    apply Subtype.mk_le_mk.mpr
-    apply le_csSup
+    exact le_sSup haS
 
-    exact hsbdd
-
-    simp
-    use hrI
-
-
-    intro ub h
-    apply le_iff_forall_pos_lt_add.mpr
-    intro ε he
+    intro w h
+    let ε := (T.mul (sSup S) q).1-w
+    have he : ε > 0 := by exact sub_pos.mpr h
     let hT := T.left_cont
     apply (left_cont_lower_semi T.toTnorm).mp at hT
-    let r : I := ⟨sSup (Subtype.val '' S), sup_mem_I⟩
-    specialize hT r q ε he
+    specialize hT (sSup S) q ε he
     obtain ⟨δ, hd, hT⟩ := hT
-    have ha : ∃ a ∈ (Subtype.val '' S), r+(-δ) < a := by
-      apply (Real.le_sSup_iff hsbdd ?_).mp
-      rfl
+    have ha : ∃ a ∈ S, (sSup S)+(-δ) < a := by
+      apply (UnitInterval.le_sSup_iff hs).mp; rfl
       exact neg_neg_iff_pos.mpr hd
-      exact Set.Nonempty.image Subtype.val hs
     obtain ⟨a, haS, har⟩ := ha
     let haS2 := haS
-    simp at haS
-    obtain ⟨haI, haS⟩ := haS
-    specialize hT ⟨a, haI⟩ q har ?_
-
-    apply Subtype.mk_le_mk.mpr
-    apply le_csSup hsbdd haS2
-
+    specialize hT a q har (le_sSup haS2)
     specialize hT ?_ ?_
-    simp [hd]
-    rfl
+    simp only [sub_lt_self_iff, hd]; rfl
 
-    apply lt_add_of_tsub_lt_right at hT
-    specialize h (T.mul ⟨a, haI⟩ q) ?_
-    simp
-    constructor
-    exact (T.mul ⟨a, haI⟩ q).2
-    use a
-    use haI
-
-    calc (T.mul r q).1
-      _ < (T.mul ⟨a, haI⟩ q)+ε := hT
-      _ ≤ ub+ε := add_le_add_right h ε
+    unfold ε at hT; simp only [sub_sub_cancel, Subtype.coe_lt_coe] at hT
+    use (T.mul a q); constructor;
+    simp only [Set.mem_range, Subtype.exists, exists_prop, Set.mem_Icc]
+    use a; use a.2; exact hT
 
 
 lemma max_del_mem {p : I} {δ : ℝ} (h : δ > 0) : (max 0 (p - (δ/2))) ∈ I := by
@@ -355,30 +319,20 @@ lemma max_del_mem {p : I} {δ : ℝ} (h : δ > 0) : (max 0 (p - (δ/2))) ∈ I :
 
 theorem left_cont_one_var_iff_lower_semi (T : Tnorm) : (∀ p q : I, ∀ ε > 0, ∃ δ > 0,
   ∀ r : I, p.1-δ < r → r ≤ p → |(T.mul r q).1-(T.mul p q)| < ε) ↔ T.LowerSemicontinuous := by
-    constructor
-    intro h
-    intro p₀ q₀
-    intro ε
-    intro he
-    apply half_pos at he
-    have he2 : ε/2 > 0 := by exact he
+    constructor; intro h p₀ q₀ ε he
 
-    apply h p₀ q₀ at he
-    obtain ⟨δ₁, hd1⟩ := he
-    obtain ⟨hd1p, hd1⟩ := hd1
+    let h00 := h p₀ q₀ (ε/2) (half_pos he)
+    obtain ⟨δ₁, hd1p, hd1⟩ := h00
     let p₁ : I := ⟨max 0 (p₀-(δ₁/2)), max_del_mem hd1p⟩
 
-    apply h q₀ p₁ at he2
-    obtain ⟨δ₂, hd2⟩ := he2
+    specialize h q₀ p₁ (ε/2) (half_pos he)
+    obtain ⟨δ₂, hd2⟩ := h
     obtain ⟨hd2p, hd2⟩ := hd2
     let q₁ : I := ⟨max 0 (q₀-(δ₂/2)), max_del_mem hd2p⟩
 
     let δ := min (δ₁/2) (δ₂/2)
-    use δ
-    constructor
-    apply half_pos at hd1p
-    apply half_pos at hd2p
-    exact lt_min hd1p hd2p
+    use δ; constructor
+    exact lt_min (half_pos hd1p) (half_pos hd2p)
 
     intro p q
     intro hpl hpg hql hqg
@@ -404,7 +358,7 @@ theorem left_cont_one_var_iff_lower_semi (T : Tnorm) : (∀ p q : I, ∀ ε > 0,
       have hp1l : p₀ - δ₁ < p₁.1 := by
         apply lt_max_iff.mpr
         right
-        simp [hd1p]
+        simp only [sub_lt_sub_iff_left, half_lt_self_iff, hd1p]
       have hp1g : p₁.1 ≤ p₀ := by
         apply max_le_iff.mpr
         simp
@@ -426,18 +380,15 @@ theorem left_cont_one_var_iff_lower_semi (T : Tnorm) : (∀ p q : I, ∀ ε > 0,
 
       specialize hd1 p₁ hp1l hp1g
       specialize hd2 q₁ hq1l hq1g
-      rw [← abs_neg] at hd1
-      simp at hd1
-      nth_rw 1 [T.mul_comm] at hd2
-      nth_rw 2 [T.mul_comm] at hd2
-      rw [← abs_neg] at hd2
-      simp at hd2
+      rw [← abs_neg, neg_sub] at hd1
+      nth_rw 1 [T.mul_comm] at hd2; nth_rw 2 [T.mul_comm] at hd2
+      rw [← abs_neg, neg_sub] at hd2
 
       calc |(T.mul p₀ q₀).1 - (T.mul p₁ q₁)|
         _ ≤ |(T.mul p₀ q₀).1 - (T.mul p₁ q₀)|+|(T.mul p₁ q₀).1-(T.mul p₁ q₁)| := by exact abs_sub_le (T.mul p₀ q₀).1 (T.mul p₁ q₀) (T.mul p₁ q₁)
         _ < ε/2 + |(T.mul p₁ q₀).1-(T.mul p₁ q₁)| := by exact (add_lt_add_iff_right |(T.mul p₁ q₀).1 - (T.mul p₁ q₁)|).mpr hd1
         _ < ε/2 + ε/2 := by exact (add_lt_add_iff_left (ε/2)).mpr hd2
-        _ = ε := by simp
+        _ = ε := by rw [add_halves]
 
     calc (T.mul p₀ q₀).1 - ε
       _ < T.mul p₁ q₁ := by exact sub_lt_of_abs_sub_lt_right hin
@@ -445,13 +396,10 @@ theorem left_cont_one_var_iff_lower_semi (T : Tnorm) : (∀ p q : I, ∀ ε > 0,
 
 
 
-    intro h
-    intro p q ε he
+    intro h p q ε he
     specialize h p q ε he
     obtain ⟨δ, hdp, hmul⟩ := h
-    use δ
-    constructor
-    exact hdp
+    use δ; constructor; exact hdp
     intro r hrl hrg
     rw [abs_eq_max_neg]
     apply max_lt
@@ -463,8 +411,7 @@ theorem left_cont_one_var_iff_lower_semi (T : Tnorm) : (∀ p q : I, ∀ ε > 0,
       _ ≤ (T.mul p q) := by exact hrg
       _ < ε+(T.mul p q) := by exact lt_add_of_pos_left (↑(T.mul p q)) he
 
-    simp
+    rw [neg_sub]
     specialize hmul r q hrl hrg ?_ ?_
-    simp [hdp]
-    rfl
-    exact sub_lt_comm.mp hmul
+    rw [sub_lt_self_iff]; exact hdp
+    rfl; exact sub_lt_comm.mp hmul

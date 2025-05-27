@@ -5,315 +5,245 @@ import Tnorms.Algebra
 import Tnorms.LeftContinuity
 import Tnorms.Continuity
 import Tnorms.LeftContinuousArchimedean
+import Tnorms.RatPow
+import Tnorms.RealPow
 
+import Mathlib.Tactic.Rify
 import Mathlib.Topology.UnitInterval
 import Mathlib.Topology.Basic
 
+
 open unitInterval
 
-
-theorem npow_cont (T : ContinuousTnorm) (n : ℕ) : Continuous (fun (p : I) => T.npow n p) := by
-  apply continuous_iff_seqContinuous.mpr
-  intro x p hx
-  induction' n with n ih
-  apply tendsto_const_nhds
-
-  simp at ih
-  let y : ℕ → I := (fun m => T.npow n (x m))
-  let h := T.cont x y p (T.npow n p) hx ih
-  exact h
-
-section namespace Tnorm
-
-variable {T : Tnorm}
-
-noncomputable
-def ipow (n : ℕ) (p : I) : I :=
-  ⟨sSup (Subtype.val '' {q : I | T.npow n q < p}), sup_mem_I⟩
-
-noncomputable
-def rpow (r : ℚ) (p : I) := T.npow r.num.toNat (T.ipow r.den p)
-
-@[simp] lemma ipow_nat_one (p : I) : T.ipow 1 p = p := by
-  unfold ipow
-  apply Subtype.mk_eq_mk.mpr
-  by_cases hp : p = 0
-  rw [hp]
-  have hs : (Subtype.val '' {q : I | T.npow 1 q < 0}) = ∅ := by simp
-  rw [hs]
-  apply Real.sSup_empty
-
-  push_neg at hp
-  apply unitInterval.pos_iff_ne_zero.mpr at hp
-  refine csSup_eq_of_is_forall_le_of_forall_le_imp_ge ?_ ?_ ?_
-  use 0; simp; exact hp
-  intro q hq; simp at hq
-  obtain ⟨hqI, hq⟩ := hq
-  exact le_of_lt hq
-
-  intro r hr
-  refine forall_lt_imp_le_iff_le_of_dense.mp ?_
-  intro q hq
-  by_cases hqI : 0 < q
-  specialize hr q ?_
-  simp
-  use ?_
-  exact hq
-  constructor
-  exact le_of_lt hqI
-  calc q
-    _ ≤ p := le_of_lt hq
-    _ ≤ 1 := le_one p
-  exact hr
-  push_neg at hqI
-  apply le_trans hqI
-  specialize hr 0
-  simp at hr
-  exact hr hp
-
-
-@[simp] lemma ipow_nat_zero (p : I) : T.ipow 0 p = 0 := by
-  unfold ipow
-  apply Subtype.mk_eq_mk.mpr
-  have h : (Subtype.val '' {q : I | T.npow 0 q < p}) = ∅ := by
-    refine Set.image_eq_empty.mpr ?_
-    refine Set.eq_empty_of_forall_not_mem ?_
-    simp
-    exact le_one p
-  rw [h]
-  apply Real.sSup_empty
-@[simp] lemma ipow_I_zero (n : ℕ) : T.ipow n 0 = 0 := by
-  unfold ipow
-  apply Subtype.mk_eq_mk.mpr
-  have h : (Subtype.val '' {q : I | T.npow n q < 0}) = ∅ := by simp
-  rw [h]
-  apply Real.sSup_empty
-
-lemma npow_ne_zero_zero (n : ℕ) (h : n ≠ 0) : T.npow n 0 = 0 := by
-  induction' n with n ih
-  simp; exact h rfl
-  by_cases hn : n = 0
-  rw [hn]; simp
-  specialize ih hn
-  rw [T.npow_succ, ih, T.mul_zero]
-
-variable {T : ContinuousTnorm}
-
-lemma npow_I_one (T : Tnorm) (n : ℕ) : T.npow n 1 = 1 := by
-  induction' n with n ih
-  exact T.npow_zero 1
-  rw [T.npow_succ, T.one_mul, ih]
-
-lemma lt_of_npow_lt (T : Tnorm) (n : ℕ) (p q : I) : T.npow n p < T.npow n q → p < q := by
-  contrapose!
-  exact T.npow_le n q p
-
-
-theorem pow_inv (T : ContinuousTnorm) (n : ℕ) (p : I) (h : n ≠ 0) : T.npow n (T.ipow n p) = p := by
-  unfold ipow
-  by_cases hp : p = 0
-
-  have hemp : (Subtype.val '' {q : I | T.npow n q < p}) = ∅ := by
-    apply Set.image_eq_empty.mpr
-    refine Set.subset_empty_iff.mp ?_
-    intro q; simp;
-    rw [hp]; exact (T.npow n q).2.1
-  have hempz : ⟨sSup (Subtype.val '' {q : I | T.npow n q < p}), sup_mem_I⟩ = (0 : I) := by
-    apply Subtype.mk_eq_mk.mpr
-    rw [hemp]; exact Real.sSup_empty
-  rw [hempz]
-  rw [T.npow_ne_zero_zero n h, hp]
-
-  have hbdd : BddBelow (Subtype.val '' {q | T.npow n q = p}) := by
-    apply bddBelow_def.mpr
-    use 0; intro y hy; simp at hy
-    obtain ⟨hyI, hy⟩ := hy
-    exact hyI.1
-  let r : I := ⟨sInf (Subtype.val '' {q | T.npow n q = p}), inf_mem_I⟩
-  have hrp : T.npow n r = p := by
-    have hrp : r.1 ∈ (Subtype.val '' {q | T.npow n q = p}) := by
-      unfold r
-      refine IsClosed.csInf_mem ?_ ?_ hbdd
-      exact IsClosed.trans (isClosed_eq (npow_cont T n) continuous_const) isClosed_Icc
-
-      have her : ∃ q : I, T.npow n q = p := by
-        let h2 := intermediate_value_univ 0 1 (npow_cont T n)
-        rw [T.npow_ne_zero_zero n h, T.npow_I_one n] at h2
-        exact h2 p.2
-      obtain ⟨q, hq⟩ := her
-      use q; simp; constructor; exact q.2; exact hq
-
-    simp at hrp
-    exact hrp.2
-
-  have hrs : r = sSup (Subtype.val '' {q | T.npow n q < p}) := by
-    refine Eq.symm (csSup_eq_of_is_forall_le_of_forall_le_imp_ge ?_ ?_ ?_)
-
-    use 0; simp; rw [T.npow_ne_zero_zero n h]; exact unitInterval.pos_iff_ne_zero.mpr hp
-
-    intro a ha; simp at ha
-    obtain ⟨haI, ha⟩ := ha
-    rw [← hrp] at ha
-    apply lt_of_npow_lt at ha
-    exact le_of_lt ha
-
-    intro ub hub
-    by_contra! hurb
-    have hr' : ub < (r+ub)/2 := by
-      calc ub
-        _ = (ub/2) + (ub/2) := Eq.symm (add_halves ub)
-        _ < (r/2) + (ub/2) := (add_lt_add_iff_right (ub / 2)).mpr (div_lt_div_of_pos_right hurb zero_lt_two)
-        _ = (r+ub)/2 := Eq.symm (add_div (↑r) ub 2)
-    have hrr : (r+ub)/2 < r := by
-      calc (r+ub)/2
-        _ = (r/2)+(ub/2) := add_div (↑r) ub 2
-        _ < (r/2)+(r/2) := (add_lt_add_iff_left (↑r / 2)).mpr (div_lt_div_of_pos_right hurb zero_lt_two)
-        _ = r := add_halves r.1
-    let r' : I := ⟨(r+ub)/2, by
-      constructor
-      calc 0
-        _ ≤ ub := by specialize hub 0; simp at hub; rw
-          [T.npow_ne_zero_zero n h] at hub; apply
-          unitInterval.pos_iff_ne_zero.mpr at hp; exact hub hp
-        _ ≤ (r+ub)/2 := le_of_lt hr'
-      calc (r+ub)/2
-        _ ≤ r := le_of_lt hrr
-        _ ≤ 1 := le_one r
-      ⟩
-    have hr'p : T.npow n r' < p := by
-      by_contra! hpow
-      apply antisymm' at hpow
-      specialize hpow ?_
-      rw [← hrp]
-      apply T.npow_le n r' r (le_of_lt hrr)
-
-      conv at hrr => rhs; unfold r
-      simp only at hrr
-      have hrin : r'.1 ∈ (Subtype.val '' {q | T.npow n q = p}) := by
-        simp; constructor; exact r'.2; exact hpow
-      apply csInf_le hbdd at hrin
-      apply not_le_of_lt at hrr
-      contradiction
-
-    specialize hub r' ?_
-    simp [hr'p]; exact r'.2
-    apply not_le_of_lt at hr'
-    contradiction
-
-  have hrs' : r = ⟨sSup (Subtype.val '' {q | T.npow n q < p}), sup_mem_I⟩ := Subtype.mk_eq_mk.mpr hrs
-  rw [← hrs', hrp]
-
-
-theorem ipow_mul (n m : ℕ) (p : I) : T.ipow n (T.ipow m p) = T.ipow (n*m) p := by
-  by_cases hp : p = 0
-  rw [hp, ipow_I_zero, ipow_I_zero, ipow_I_zero]
-  apply unitInterval.pos_iff_ne_zero.mpr at hp
-  by_cases hm : m = 0
-  rw [hm, ipow_nat_zero, ipow_I_zero, Nat.mul_zero, ipow_nat_zero]
-
-  unfold ipow
-  apply Subtype.mk_eq_mk.mpr
-  have hbdd : BddAbove (Subtype.val '' {q | T.npow m q < p}) := by
-    apply bddAbove_def.mpr
-    use 1; intro y hy; simp at hy; exact hy.1.2
-  have hnempty : (Subtype.val '' {q | T.npow m q < p}).Nonempty := by
-    use 0; simp
-    rw [npow_ne_zero_zero m hm]
-    exact hp
-  refine csSup_eq_csSup_of_forall_exists_le ?_ ?_
-  intro x hx; simp at hx
-  obtain ⟨hxI, hpow⟩ := hx
-  use x
-  constructor; swap; rfl
-  simp; use hxI
-  apply Subtype.mk_lt_mk.mp at hpow
-  apply (lt_csSup_iff hbdd hnempty).mp at hpow
-  obtain ⟨q, hq, hpow⟩ := hpow
-  simp at hq
-  obtain ⟨hqI, hq⟩ := hq
-  calc T.npow (n*m) ⟨x, hxI⟩
-    _ = T.npow m (T.npow n ⟨x, hxI⟩) := by rw [T.npow_mul, Nat.mul_comm]
-    _ ≤ T.npow m ⟨q, hqI⟩ := by apply T.npow_le; exact le_of_lt hpow
-    _ < p := hq
-
-  intro x hx; simp at hx
-  obtain ⟨hxI, hx⟩ := hx
-  use x; simp; use hxI
-  have hr : ⟨sSup (Subtype.val '' {q | T.npow m q < p}), sup_mem_I⟩ = T.ipow m p := by rfl
-  rw [hr]
-  by_contra h
-  push_neg at h
-  apply T.npow_le m at h
-  rw [pow_inv T m p hm, T.npow_mul, Nat.mul_comm] at h
-  apply not_le_of_lt at hx
-  contradiction
-
-theorem rpow_well_defined {m n : ℕ} {r : ℚ} {p : I} (hnz : n ≠ 0) : r.num * n = r.den * m → T.rpow r p = T.npow m (T.ipow n p) := by
+lemma zero_sq_of_nilpt_el {T : Tnorm} : HasNilpotent T → ∃ p : I, T.npow 2 p = 0 ∧ IsNontrivial p := by
   intro h
-  unfold rpow
-  have hm : ∃ k : ℕ, m = k*(r.num.toNat) ∧ n = k * r.den ∧ k ≠ 0 := by
-    have hrnumnn : r.num ≥ 0 := by
-      apply Nat.pos_iff_ne_zero.mpr at hnz
-      have hnz : 0 < (n : ℤ) := by exact_mod_cast hnz
-      apply nonneg_of_mul_nonneg_left ?_ hnz
-      rw [h]
-      exact Lean.Omega.Int.ofNat_mul_nonneg
-    have hdvd : r.den ∣ n := by
-      have hcond : r.den.Coprime r.num.natAbs := Nat.coprime_comm.mp r.reduced
-      apply (Nat.Coprime.dvd_mul_left hcond).mp
-      use m
-      rw [← Int.natAbs_of_nonneg hrnumnn] at h
-      exact_mod_cast h
-    obtain ⟨k, hdvd⟩ := hdvd
-    use k
-    constructor
-    have hm : ↑m = k * r.num := by
-      apply nat_mul_inj' ?_ r.den_nz
-      calc ↑(r.den) * ↑m
-        _ = r.num * (r.den * k) := by rw_mod_cast [← h, hdvd]
-        _ = r.den * (k*r.num) := by ring
-    rw [← Int.toNat_of_nonneg hrnumnn ] at hm
-    exact_mod_cast hm
+  obtain ⟨q, hqnt, n, hpow⟩ := h
+  let m := sSup {n : ℕ | T.npow n q > 0}
+  have hbdd : BddAbove ({n | T.npow n q > 0}) := by
+    apply bddAbove_def.mpr
+    use n; intro y; contrapose!; intro hny
+    apply le_of_lt at hny
+    apply T.npow_le_self n y q at hny; rw[hpow] at hny
+    apply Set.notMem_setOf_iff.mpr (not_lt_of_le hny)
+  have hm : 1 ≤ m := by
+      apply le_csSup hbdd
+      apply Set.mem_setOf.mpr; rw [T.npow_one]
+      exact unitInterval.pos_iff_ne_zero.mpr hqnt.1
+  use T.npow m q; constructor; swap; constructor
+  apply unitInterval.pos_iff_ne_zero.mp
+  have hm : m ∈ {n | T.npow n q > 0} := by
+    apply Nat.sSup_mem ?_ hbdd
+    use 0; apply Set.mem_setOf_eq.mpr; rw [T.npow_zero]; exact zero_lt_one
+  apply Set.mem_setOf_eq.mp hm
 
-    constructor
-    rw [hdvd, Nat.mul_comm]
-    by_contra hk
-    rw [hk, Nat.mul_zero] at hdvd
-    contradiction
-  obtain ⟨k, hm, hn, hk⟩ := hm
-  rw [hm, Nat.mul_comm, ← T.npow_mul]
-  rw [hn, ← ipow_mul, pow_inv]
-  exact hk
+  apply unitInterval.lt_one_iff_ne_one.mp
+  calc T.npow m q
+    _ ≤ T.npow 1 q := T.npow_le_self 1 m q hm
+    _ = q := T.npow_one q
+    _ < 1 := unitInterval.lt_one_iff_ne_one.mpr hqnt.2
 
-theorem rpow_add (r s : ℚ) (p : I) (hr : r.num ≥ 0) (hs : s.num ≥ 0) : T.rpow (r+s) p = T.mul (T.rpow r p) (T.rpow s p) := by
-  have nonneg1 := Int.mul_nonneg hr (Int.ofNat_zero_le s.den)
-  have nonneg2 := Int.mul_nonneg hs (Int.ofNat_zero_le r.den)
-  have nd_nonneg : (r.num*s.den + s.num*r.den).toNat = r.num*s.den + s.num*r.den := by
-    rw [Int.toNat_of_nonneg (Int.add_nonneg nonneg1 nonneg2)]
-  have h : T.rpow (r+s) p = T.npow (r.num*s.den + s.num*r.den).toNat ( T.ipow (r.den * s.den) p) := by
-    apply rpow_well_defined (Nat.mul_ne_zero r.den_nz s.den_nz)
-    rw [nd_nonneg]
-    calc (r+s).num * (r.den * s.den)
-      _ = (r+s).num * r.den * s.den := by ring
-      _ = (r.num * s.den + s.num * r.den) * (r+s).den := by apply Rat.add_num_den' r s
-      _ = (r+s).den * (r.num * s.den + s.num * r.den) := by ring
-  have nd_add := Int.toNat_add nonneg1 nonneg2
-  have hrp : T.rpow r p = T.npow (r.num*s.den).toNat (T.ipow (r.den*s.den) p) := by
-    apply rpow_well_defined (Nat.mul_ne_zero r.den_nz s.den_nz)
-    rw [Int.toNat_of_nonneg nonneg1]
-    push_cast; ring
-  have hsp : T.rpow s p = T.npow (s.num*r.den).toNat (T.ipow (r.den*s.den) p) := by
-    apply rpow_well_defined (Nat.mul_ne_zero r.den_nz s.den_nz)
-    rw [Int.toNat_of_nonneg nonneg2]
-    push_cast; ring
-  rw [h, nd_add, ← T.npow_add, hrp, hsp]
+  apply le_zero_iff.mp
+  calc T.npow 2 (T.npow m q)
+    _ = T.npow (2*m) q := T.npow_mul m 2 q
+    _ ≤ T.npow (m+1) q := T.npow_le_self (m+1) (2*m) q (add_one_le_two_mul hm)
+    _ = 0 := by
+      apply le_zero_iff.mp
+      suffices m+1 ∉ {n | T.npow n q > 0} by exact le_of_not_lt this
+      apply notMem_of_csSup_lt (lt_add_one m) hbdd
 
-end Tnorm
+lemma zero_sq_nonempty {T : Tnorm} : Nilpotent T → {p : I | T.npow 2 p = 0}.Nonempty := by
+  intro h
+  apply nilpt_el_of_nilpt at h
+  apply zero_sq_of_nilpt_el at h
+  obtain ⟨p, hp, hpnt⟩ := h
+  use p; exact hp
 
-
-/- Major theorem about the structure of Tnorms that require representation approaches
-  (using pseudo-inverses or generators or something like that)
--/
 
 theorem luk_iso_of_nilpt {T : Tnorm} : Nilpotent T → Tnorm.Isomorphic Tnorm.LukTnorm.toTnorm T := by
-  sorry
+  intro h
+  let L := Tnorm.LukTnorm
+  let T :=  T.toContinuousTnorm h.1
+  let a : I := sSup {p : I | T.npow 2 p = 0}
+  have ha2 : T.pow 2 a = 0 := by
+    have hpr : T.pow 2 a = T.rpow 2 a := by exact_mod_cast T.pow_cast 2 a
+    have hrn : T.rpow 2 a = T.npow 2 a := by exact_mod_cast T.rpow_cast 2 a
+    rw [hpr, hrn]
+    suffices IsClosed {p : I | T.npow 2 p = 0} by
+      apply IsClosed.sSup_mem at this
+      specialize this
+      rw [Set.mem_setOf] at this; unfold a
+      exact this
+      exact zero_sq_nonempty h
+    exact isClosed_eq (Tnorm.npow_cont T 2) continuous_const
+  have ha0 : ∀ t : ℝ, t ≥ 2 → T.pow t a = 0 := by
+    intro t ht
+    apply T.pow_anti a at ht
+    unfold ContinuousTnorm.powp at ht
+    rw [ha2] at ht
+    apply antisymm ht
+    exact (T.pow t a).2.1
+  have ha1 : ∀ t : ℝ, t ≤ 0 → T.pow t a = 1 := by
+    intro t ht
+    rw [T.pow_nonpos]; exact ht
+  have hant : IsNontrivial a := by
+    constructor
+    apply unitInterval.pos_iff_ne_zero.mp
+    obtain ⟨p, hp, hpnt⟩ := zero_sq_of_nilpt_el (nilpt_el_of_nilpt T.toTnorm h)
+    apply And.left at hpnt; apply unitInterval.pos_iff_ne_zero.mpr at hpnt
+    apply lt_of_lt_of_le hpnt
+    apply le_sSup;
+    exact Set.mem_setOf.mp hp
+
+    apply_fun (T.npow 2)
+    rw [T.npow_I_one]
+    specialize ha0 2 ?_; rfl
+    rw_mod_cast [← Tnorm.rpow_cast, ← T.pow_cast, ha0]
+    exact zero_ne_one' ↑I
+  have has : sSup {t | T.pow t a ≠ 0} = 2 := by
+    apply csSup_eq_of_forall_le_of_forall_lt_exists_gt (T.nonzeropow_nonempty a)
+    intro t ht; rw [Set.mem_setOf] at ht
+    specialize ha0 t
+    contrapose! ht
+    specialize ha0 (le_of_lt ht)
+    exact ha0
+
+    intro w hw;
+    obtain ⟨r, hrw, hr⟩ := exists_rat_btwn hw
+    use r; constructor; swap; exact hrw
+    rw [Set.mem_setOf, T.pow_cast]
+    by_cases hr0 : r ≤ 0
+    rw [Tnorm.zero_rpow r a hr0]
+    exact one_ne_zero
+
+    let b := T.rpow (r/2) a
+    suffices b > a by
+      suffices b ∉ {p | T.npow 2 p = 0} by
+        rw [Set.mem_setOf] at this
+        unfold b at this; push_neg at this; push_neg at hr0
+        rw [T.npow_two,
+          ← Tnorm.rpow_add (r/2) (r/2) a (le_of_lt (half_pos hr0)) (le_of_lt (half_pos hr0)),
+          add_halves] at this
+        exact this
+      contrapose! this
+      apply le_sSup this
+    rw [← T.npow_one a, ← T.rpow_cast]; unfold b
+    apply Tnorm.rpow_strict_anti (arch_of_nilpt T.toTnorm h)
+    refine (div_lt_iff₀' rfl).mpr ?_; rw [Nat.cast_one, mul_one]; exact_mod_cast hr
+    exact hant; push_neg at hr0; exact le_of_lt (half_pos hr0)
+    apply le_csSup; swap;
+    simp only [ne_eq, Nat.cast_one, Rat.cast_one, Set.mem_image, Set.mem_setOf_eq]
+    use 1; simp only [Rat.cast_one, and_true]; push_neg
+    have hrnpow : T.rpow 1 a = T.npow 1 a := by rw [← Tnorm.rpow_cast 1 a]; rfl
+    rw [hrnpow, T.npow_one]; exact hant.1
+
+    apply bddAbove_def.mpr
+    apply And.right at h
+    specialize h a hant; obtain ⟨n, hn⟩ := h
+    use n; intro y hy; simp only [ne_eq, Set.mem_image, Set.mem_setOf_eq] at hy
+    obtain ⟨y', hy, hyy'⟩ := hy
+    apply unitInterval.pos_iff_ne_zero.mpr at hy
+    contrapose! hy
+    rw [← hn, ← Tnorm.rpow_cast n a]
+    apply Tnorm.rpow_le_self; rw [← hyy'] at hy; exact_mod_cast le_of_lt hy
+
+
+  let f : Set.Icc (0:ℝ) 2 → I := fun x => T.pow x a
+  have hfb : Function.Bijective f := by
+    constructor
+    let hi := T.pow_inj h a hant
+    rw [has] at hi
+    intro p q hpq; apply Subtype.coe_inj.mp
+    exact hi p.2 q.2 hpq
+
+    let hs := T.pow_surj h a hant
+    intro p
+    specialize hs p; obtain ⟨b, hs⟩ := hs
+    by_cases h0 : b ≤ 0
+    apply ha1 b at h0; unfold ContinuousTnorm.powp at hs; rw [h0] at hs
+    use ⟨0, by constructor; rfl; exact zero_le_two⟩
+    rw [← hs]; unfold f; apply ha1; rfl
+
+    by_cases h2 : b ≥ 2
+    apply ha0 b at h2; unfold ContinuousTnorm.powp at hs; rw [h2] at hs
+    use ⟨2, by constructor; exact zero_le_two; rfl⟩
+    rw [← hs]; unfold f; apply ha0; rfl
+
+    push_neg at h0; push_neg at h2
+    use ⟨b, by constructor; exact le_of_lt h0; exact le_of_lt h2⟩
+    exact hs
+  have hfa : Antitone f := by intro p q hpq; exact T.pow_anti a hpq
+  have hfx' : ∀ r s : Set.Icc (0 : ℝ) 2, T.mul (f r) (f s) = T.pow (r+s) a := by
+    intro r s; symm
+    apply T.pow_add h; exact hant; exact r.2.1; exact s.2.1
+  have hfx : ∀ r s t : Set.Icc (0 : ℝ) 2, r.1+s=t → (f t) = T.mul (f r) (f s) := by
+    intro r s t hrst; specialize hfx' r s; rw [hfx', hrst]
+
+
+  let g : I → Set.Icc (0 : ℝ) 2 := fun p => ⟨2*p, by
+    constructor; exact mul_nonneg (zero_le_two) p.2.1
+    nth_rw 2 [← MulOneClass.mul_one 2]
+    exact (mul_le_mul_iff_of_pos_left zero_lt_two).mpr p.2.2
+    ⟩
+  have hgb : Function.Bijective g := by
+    constructor
+    intro p q hpq; unfold g at hpq;
+    simp only [Subtype.mk.injEq, mul_eq_mul_left_iff, OfNat.ofNat_ne_zero, or_false] at hpq
+    exact SetCoe.ext hpq
+
+    intro a; use ⟨a/2, by
+      constructor
+      exact div_nonneg a.2.1 zero_le_two
+      exact (div_le_one₀ zero_lt_two).mpr a.2.2
+      ⟩
+    unfold g; field_simp
+  have hgm : Monotone g := by
+    intro p q hpq; unfold g; apply Subtype.mk_le_mk.mpr
+    apply Subtype.coe_le_coe.mpr at hpq
+    apply (mul_le_mul_left zero_lt_two).mpr hpq
+
+  have hsb : Function.Bijective σ := by
+    apply Function.bijective_iff_has_inverse.mpr
+    use σ; constructor;
+    exact symm_symm; exact symm_symm
+  have hsa : Antitone σ := by intro p q hpq; exact symm_le_symm.mpr hpq
+
+  let φ := f ∘ g ∘ σ
+
+  use φ; constructor; constructor
+  exact Function.Bijective.comp hfb (Function.Bijective.comp hgb hsb)
+  exact Antitone.comp hfa (Monotone.comp_antitone hgm hsa)
+
+
+  intro p q
+  unfold φ
+  have ht : Tnorm.LukTnorm.mul p q = 0 ⊔ (p.1+q-1) := by rfl
+  simp only [Function.comp_apply]
+  by_cases hpq : p.1+q-1 ≥ 0
+  apply hfx (g (σ p)) (g (σ q)) (g (σ (L.mul p q)))
+  unfold g; simp only [coe_symm_eq]
+  calc 2*(1-p.1) + 2*(1-q)
+    _ = 2*(1-(p.1+q-1)) := by ring
+    _ = 2*(1-(L.mul p q)) := by congr; rw [ht]; exact Eq.symm (max_eq_right hpq)
+
+  specialize hfx' (g (σ p)) (g (σ q)); push_neg at hpq
+  have hf0 : f (g (σ (Tnorm.LukTnorm.mul p q))) = 0 := by
+    suffices (Tnorm.LukTnorm.mul p q) = 0 by
+      rw [this, symm_zero]; unfold g
+      simp only [Set.Icc.coe_one, mul_one]
+      unfold f; apply ha0 2 ?_; rfl
+    rw [max_eq_left (le_of_lt hpq)] at ht
+    exact SetCoe.ext ht
+  have hgs : (g (σ p)).1+(g (σ q)) ≥ 2 := by
+    unfold g; simp only [coe_symm_eq]
+    apply le_of_lt
+    calc 2*(1-p.1)+2*(1-q)
+      _ = 2*(1-(p.1+q-1)) := by ring
+      _ > 2*(1-0) := by
+        apply (mul_lt_mul_left zero_lt_two).mpr
+        rw [sub_zero]
+        apply lt_tsub_comm.mp
+        rw [sub_self]
+        exact hpq
+      _ = 2 := by ring
+  specialize ha0 ((g (σ p)).1+(g (σ q))) hgs
+  rw [ha0] at hfx'; rw [hf0, ← hfx']; rfl

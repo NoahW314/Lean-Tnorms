@@ -3,7 +3,10 @@ import Tnorms.Basic
 import Tnorms.Algebra
 import Tnorms.Continuity
 import Tnorms.LeftContinuity
+
 import Mathlib.Topology.UnitInterval
+import Mathlib.Algebra.Order.Ring.Star
+
 open unitInterval
 
 theorem right_cont_boundary (T : Tnorm) (p q : I) : ¬ IsNontrivial p → ∀ x y : ℕ → I,
@@ -56,19 +59,7 @@ theorem right_cont_boundary' (T : Tnorm) (p q : I) : ¬ IsNontrivial q → ∀ x
     rw [T.mul_comm, hfun]
     exact right_cont_boundary T q p hq y x hay hax hy hx
 
-lemma anti_mul_anti_anti (T : Tnorm) {x y : ℕ → I} (hx : Antitone x) (hy : Antitone y) :
-  Antitone (fun n => T.mul (x n) (y n)) := by
-    intro n m hnm
-    apply T.mul_le_mul
-    exact hx hnm
-    exact hy hnm
 
-lemma mono_mul_mono_mono (T : Tnorm) {x y : ℕ → I} (hx : Monotone x) (hy : Monotone y) :
-  Monotone (fun n => T.mul (x n) (y n)) := by
-    intro n m hnm
-    apply T.mul_le_mul
-    exact hx hnm
-    exact hy hnm
 
 lemma zero_one_arch {T : Tnorm} (h : IsArchimedean T) (p q : I) : p ≠ 1 → q ≠ 0 → ∃ n, T.npow n p < q := by
   intro hp1 hq0
@@ -114,8 +105,8 @@ lemma pow_set_bddAbove {T : Tnorm} (p q : I) : p ≠ 1 → q ≠ 0 → IsArchime
 
 lemma seq_arch {T : Tnorm} {z : ℕ → I} {p : I} {n : ℕ} (h : IsArchimedean T) (hz : ∀ n : ℕ, (z n) ≠ 1)
   (hp : p ≠ 0) : T.npow (((fun n => sSup { m : ℕ | T.npow m (z n) > p}) n)+1) (z n) ≤ p := by
-    have hkm := not_mem_of_csSup_lt (lt_add_one (sSup {m | T.npow m (z n) > p})) (pow_set_bddAbove (z n) p (hz n) hp h)
-    exact le_of_not_lt hkm
+    apply le_of_not_lt
+    apply notMem_of_csSup_lt (lt_add_one (sSup {m | T.npow m (z n) > p})) (pow_set_bddAbove (z n) p (hz n) hp h)
 
 theorem mul_lim_le_lim_mul (T : Tnorm) {x y : ℕ → I} {p q a : I} (hax : Antitone x) (hay : Antitone y)
   (hx : Filter.Tendsto x Filter.atTop (nhds p)) (hy : Filter.Tendsto y Filter.atTop (nhds q))
@@ -131,8 +122,8 @@ theorem mul_lim_le_lim_mul (T : Tnorm) {x y : ℕ → I} {p q a : I} (hax : Anti
     obtain ⟨n, hmul⟩ := hmul
     specialize hmul n ?_; rfl
 
-    have hxn := lim_le_anti hax hx n
-    have hyn := lim_le_anti hay hy n
+    have hxn := Antitone.le_of_tendsto hax hx n
+    have hyn := Antitone.le_of_tendsto hay hy n
 
     have hxyn : T.mul (x n) (y n) < T.mul (x n) (y n) := by
       calc (T.mul (x n) (y n)).1
@@ -184,7 +175,8 @@ theorem cont_of_left_cont_arch (T : LeftContinuousTnorm) : IsArchimedean T.toTno
   let l : ℕ → ℕ := fun n => sSup {m : ℕ | T.npow m (z n) > q}
 
   have hmul := anti_mul_anti_anti T.toTnorm hax hay
-  obtain ⟨a, hmul⟩ := monotone_convergence (fun n => T.mul (x n) (y n)) hmul
+  let a := ⨅ i, (T.mul (x i) (y i))
+  apply tendsto_atTop_iInf at hmul
 
   have h1 : ∀ n : ℕ, T.npow ((k n) + (l n) + 2) (z n) ≤ T.mul p q := by
     intro n
@@ -233,7 +225,7 @@ theorem cont_of_left_cont_arch (T : LeftContinuousTnorm) : IsArchimedean T.toTno
         _ ≤ q+((T.npow (l n) (z n))-q) := by unfold ε; refine add_le_add ?_ ?_; rfl; apply min_le_right
         _ = (T.npow (l n) (z n)) := by ring
     calc a.1
-      _ ≤ T.mul (x n₂) (y n₂) := by apply lim_le_anti (anti_mul_anti_anti T.toTnorm hax hay) hmul n₂
+      _ ≤ T.mul (x n₂) (y n₂) := by apply Antitone.le_of_tendsto (anti_mul_anti_anti T.toTnorm hax hay) hmul n₂
       _ ≤ T.mul (T.npow (k n) (z n)) (T.npow (l n) (z n)) := by apply T.mul_le_mul; exact hxk; exact hyl
       _ = T.npow ((k n)+(l n)) (z n) := by rw [T.npow_add]
 

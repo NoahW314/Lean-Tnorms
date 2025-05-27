@@ -100,6 +100,22 @@ theorem npow_mul (n m : ℕ) (p : I) : T.npow m (T.npow n p) = T.npow (m*n) p :=
 lemma iso_is_strict_mono (φ : I → I) (hi : Isomorphism φ) : StrictMono φ :=
     Monotone.strictMono_of_injective hi.2 hi.1.1
 
+lemma mono_inv_is_mono (φ : I → I) (hi : Isomorphism φ) : Monotone (Function.invFun φ) := by
+    let φ' := Function.invFun φ
+    intro p q
+    contrapose
+    intro hpq
+    apply lt_of_not_ge at hpq
+    apply not_le_of_gt
+    apply_fun φ at hpq
+
+    have hφ : Function.RightInverse φ' φ := by exact Function.rightInverse_invFun hi.1.2
+    let hφ2 := hφ
+    specialize hφ p; specialize hφ2 q;
+    rw [hφ, hφ2] at hpq
+    exact hpq
+    exact iso_is_strict_mono φ hi
+
 lemma iso_inv_is_iso (φ : I → I) (hi : Isomorphism φ) : Isomorphism (Function.invFun φ) := by
   constructor
   refine Function.bijective_iff_has_inverse.mpr ?_
@@ -108,20 +124,29 @@ lemma iso_inv_is_iso (φ : I → I) (hi : Isomorphism φ) : Isomorphism (Functio
   exact Function.rightInverse_invFun hi.1.2
   exact Function.leftInverse_invFun hi.1.1
 
-  let φ' := Function.invFun φ
-  intro p q
-  contrapose
-  intro hpq
-  apply lt_of_not_ge at hpq
-  apply not_le_of_gt
-  apply_fun φ at hpq
+  exact mono_inv_is_mono φ hi
 
-  have hφ : Function.RightInverse φ' φ := by exact Function.rightInverse_invFun hi.1.2
-  let hφ2 := hφ
-  specialize hφ p; specialize hφ2 q;
-  rw [hφ, hφ2] at hpq
-  exact hpq
-  exact iso_is_strict_mono φ hi
+
+lemma iso_comp (φ ψ : I → I) (hiφ : Isomorphism φ) (hiψ : Isomorphism ψ) : Isomorphism (φ ∘ ψ) := by
+    constructor
+    apply Function.Bijective.comp hiφ.1 hiψ.1
+    apply Monotone.comp hiφ.2 hiψ.2
+
+
+lemma iso_symm {T₁ T₂ : Tnorm} : Tnorm.Isomorphic T₁ T₂ → Tnorm.Isomorphic T₂ T₁ := by
+    intro h
+    obtain ⟨φ, hφ, hmul⟩ := h
+    use Function.invFun φ; constructor
+    exact iso_inv_is_iso φ hφ
+
+    intro p q
+    nth_rw 1 [← Function.rightInverse_invFun hφ.1.2 p, ← Function.rightInverse_invFun hφ.1.2 q]
+    rw [← hmul (Function.invFun φ p) (Function.invFun φ q), Function.leftInverse_invFun hφ.1.1]
+
+lemma iso_symm' {T₁ T₂ : Tnorm} : Tnorm.Isomorphic T₁ T₂ ↔ Tnorm.Isomorphic T₂ T₁ := by
+    constructor
+    exact iso_symm
+    exact iso_symm
 
 
 lemma iso_one (φ : I → I) (hi : Isomorphism φ) : φ 1 = 1 := by

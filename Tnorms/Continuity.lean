@@ -2,6 +2,8 @@ import Tnorms.Defs
 import Tnorms.Basic
 import Mathlib.Topology.UnitInterval
 import Mathlib.Topology.Sequences
+import Tnorms.SupInfI
+
 open unitInterval
 
 
@@ -28,46 +30,26 @@ theorem cont_def (T : Tnorm) : T.Continuous ↔ Continuous (Function.uncurry T.m
 
 lemma mono_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (nhds p)) :
   ∃ a : ℕ → I, Monotone a ∧ (∀ n : ℕ, (a n) ≤ (x n)) ∧ Filter.Tendsto a Filter.atTop (nhds p) := by
-    have hsbdd : ∀ n : ℕ, BddBelow (Subtype.val '' (x '' {m : ℕ | m ≥ n})) := by
+    have hsnoe : ∀ n : ℕ, (x '' {m : ℕ | m ≥ n}).Nonempty := by
       intro n
-      apply bddBelow_def.mpr
-      use 0
-      intro q hq
-      simp at hq
-      obtain ⟨m, hm, hq⟩ := hq
-      rw [← hq]
-      exact nonneg (x m)
-    have hsnoe : ∀ n : ℕ, (Subtype.val '' (x '' {m : ℕ | m ≥ n})).Nonempty := by
-      intro n
-      refine Set.image_nonempty.mpr ?_
       apply Set.image_nonempty.mpr
-      use n
-      simp
-    let a : ℕ → I := fun n => ⟨sInf (Subtype.val '' (x '' {m : ℕ | m ≥ n})), inf_mem_I⟩
+      use n; simp only [ge_iff_le, Set.mem_setOf_eq, le_refl]
+    let a : ℕ → I := fun n => sInf (x '' {m : ℕ | m ≥ n})
     use a
     constructor
     · intro n k hnk
-      apply Subtype.mk_le_mk.mpr
-      apply csInf_le_csInf (hsbdd n)
-      exact hsnoe k
+      apply sInf_le_sInf
 
       apply Set.image_subset_iff.mpr
-      rw [Set.preimage_image_eq (x '' {m : ℕ | m ≥ n}) Subtype.val_injective]
       intro q hq
       simp at hq
-      obtain ⟨m, hm, hq⟩ := hq
-      rw [← hq]
-      simp
-      use m
-      constructor
-      calc n
-        _ ≤ k := by exact hnk
-        _ ≤ m := by exact hm
-      rfl
+      simp only [ge_iff_le, Set.mem_preimage, Set.mem_image, Set.mem_setOf_eq]
+      use q; constructor
+      apply le_trans hnk hq; rfl
     constructor
     · intro n
-      apply csInf_le (hsbdd n)
-      simp
+      apply sInf_le
+      simp only [ge_iff_le, Set.mem_image, Set.mem_setOf_eq]
       use n
     · refine Metric.tendsto_atTop.mpr ?_
       intro ε he
@@ -79,7 +61,7 @@ lemma mono_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (
       intro n hn
 
       have hanrfl : (a n) ≤ (a n) := by rfl
-      let han := (Real.sInf_le_iff (hsbdd n) (hsnoe n)).mp hanrfl (ε/2) (half_pos he)
+      let han := (UnitInterval.sInf_le_iff (hsnoe n)).mp hanrfl (ε/2) (half_pos he)
       obtain ⟨q, hq, han⟩ := han
       simp at hq
       obtain ⟨m, hm, hq⟩ := hq
@@ -91,7 +73,10 @@ lemma mono_of_conv {x : ℕ → I} {p : I} (hx : Filter.Tendsto x Filter.atTop (
       have hax : |(a n)-(x m).1| < (ε/2) := by
         apply max_lt
         calc (a n).1-(x m)
-          _ ≤ 0 := by refine tsub_nonpos.mpr ?_; apply csInf_le (hsbdd n); simp; use m
+          _ ≤ 0 := by
+            apply tsub_nonpos.mpr
+            apply Subtype.coe_le_coe.mpr; apply sInf_le
+            simp only [ge_iff_le, Set.mem_image, Set.mem_setOf_eq]; use m
           _ < ε/2 := by exact half_pos he
         rw [neg_sub]
         exact sub_left_lt_of_lt_add han
