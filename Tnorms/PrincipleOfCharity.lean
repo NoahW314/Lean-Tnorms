@@ -3,6 +3,7 @@ import Tnorms.FuzzyLogic
 import Tnorms.Examples
 import Tnorms.Basic
 import Tnorms.Algebra
+import Tnorms.Isomorphism
 import Tnorms.LeftContinuity
 import Tnorms.Continuity
 import Tnorms.LeftContinuousArchimedean
@@ -344,10 +345,6 @@ lemma uni_cont_ish_boundary (T : LeftContinuousTnorm) : ∀ ε > 0, ∃ δ > 0, 
       _ = ε := by ring
 
 
--- Lemma 7
-lemma uni_cont_of_iso (φ : I → I) (hi : Tnorm.Isomorphism φ) : UniformContinuous φ := by
-  let h := Monotone.continuous_of_surjective hi.2 hi.1.2
-  exact CompactSpace.uniformContinuous_of_continuous h
 
 
 -- Theorem 8

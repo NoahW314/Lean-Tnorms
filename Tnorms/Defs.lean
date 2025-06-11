@@ -2,7 +2,7 @@ import Mathlib.Topology.UnitInterval
 open unitInterval
 
 
-
+@[ext]
 structure Tnorm where
     mul : I → I → I
     mul_assoc : ∀ p q r : I, mul (mul p q) r = mul p (mul q r)

@@ -30,7 +30,7 @@ def IsArchimedean := ∀ p q : I, IsNontrivial p → IsNontrivial q → ∃ n : 
 
 def HasLimitProperty := ∀ p : I, IsNontrivial p → Filter.Tendsto (fun n => (T.npow n p)) Filter.atTop (nhds 0)
 
-
+-- Example 2.10 (ii)
 lemma cond_canc_of_canc : Cancellative T → ConditionalCancellative T := by
   intro h p q r h2 h3
   apply h at h2
@@ -41,6 +41,7 @@ lemma cond_canc_of_canc : Cancellative T → ConditionalCancellative T := by
 
   exact heq
 
+-- Proposition 2.11 (i)
 lemma canc_iff_strictly_mono : Cancellative T ↔ StrictlyMonotone T := by
   constructor
   intro h p h2 q r h3
@@ -95,6 +96,7 @@ def HasNontrivialIdempotent := ∃ p : I, IsNontrivial p ∧ T.mul p p = p
 def HasNilpotent := ∃ p : I, IsNontrivial p ∧ ∃ n : ℕ, T.npow n p = 0
 def HasZeroDivisors := ∃ p q : I, p ≠ 0 ∧ q ≠ 0 ∧ T.mul p q = 0
 
+-- Proposition 2.5
 lemma nilpt_el_iff_zd : HasNilpotent T ↔ HasZeroDivisors T := by
   constructor
   intro h
@@ -152,15 +154,14 @@ lemma nilpt_el_iff_zd : HasNilpotent T ↔ HasZeroDivisors T := by
     _ ≤ T.mul p q := by apply T.mul_le_mul; apply min_le_left; apply min_le_right
     _ = 0 := h
 
-
-
-
+-- Proposition 2.11 (ii)
 lemma nntid_of_strictly_mono : StrictlyMonotone T → ¬ HasNontrivialIdempotent T := by
   intro h ⟨p, ⟨⟨hp0, hp1⟩, hp2⟩⟩
   specialize h p (unitInterval.pos_iff_ne_zero.mpr hp0) p 1 (unitInterval.lt_one_iff_ne_one.mpr hp1)
   rw [T.mul_one, hp2] at h
   exact (lt_self_iff_false p).mp h
 
+-- Proposition 2.11 (iii)
 lemma nzd_of_strictly_mono : StrictlyMonotone T → ¬ HasZeroDivisors T := by
   intro h ⟨p, q, ⟨hp, hq, hmul⟩⟩
   specialize h p (unitInterval.pos_iff_ne_zero.mpr hp) 0 q (unitInterval.pos_iff_ne_zero.mpr hq)
@@ -168,14 +169,10 @@ lemma nzd_of_strictly_mono : StrictlyMonotone T → ¬ HasZeroDivisors T := by
   exact (lt_self_iff_false 0).mp h
 
 lemma nzd_of_canc : Cancellative T → ¬ HasZeroDivisors T := by
-  intro h ⟨p, q, ⟨hp, hq, hmul⟩⟩
-  specialize h p q 0
-  rw [T.mul_zero] at h
-  specialize h hmul
-  obtain h1|h2 := h
-  apply hp; exact h1
-  apply hq; exact h2
+  rw [canc_iff_strictly_mono]
+  exact nzd_of_strictly_mono T
 
+-- Remark 2.4(i)
 lemma pow_idempt (p : I) (n : ℕ) : T.mul p p = p → T.npow (n+1) p = p := by
   intro h
   induction n with
@@ -224,22 +221,6 @@ lemma nilpt_el_of_nilpt : Nilpotent T → HasNilpotent T := by
   exact h ⟨1/2, half_mem_I⟩ half_nontrivial
 
 
-lemma arch_of_nilpt : Nilpotent T → IsArchimedean T := by
-  intro h p q hpnt hqnt
-  apply And.right at h
-  specialize h p hpnt
-  obtain ⟨n, hn⟩ := h
-  use n
-  calc T.npow n p
-    _ = 0 := hn
-    _ < q := unitInterval.pos_iff_ne_zero.mpr hqnt.left
-
-lemma nntid_of_nilpt : Nilpotent T → ¬ HasNontrivialIdempotent T := by
-  intro h
-  apply arch_of_nilpt at h
-  apply nntid_of_arch at h
-  exact h
-
 lemma mono_mul_mono_mono (T : Tnorm) {x y : ℕ → I} (hx : Monotone x) (hy : Monotone y) :
   Monotone (fun n => T.mul (x n) (y n)) := by
     intro n m hnm
@@ -263,6 +244,7 @@ lemma mono_lim_one (x : ℕ → I) (h : Antitone x) (h1 : Filter.Tendsto x Filte
     have hxn := gt_of_ge_of_gt hx2 hx
     exact (lt_self_iff_false (x n)).mp hxn
 
+-- Proposition 2.6
 lemma idpt_iff_pow_seq_lim (h : T.RightContinuous) (a : I) : T.mul a a = a ↔ ∃ p : I,
   Filter.Tendsto (fun n => T.npow n p) Filter.atTop (nhds a) := by
     constructor; intro h; use a
@@ -294,6 +276,7 @@ lemma idpt_iff_pow_seq_lim (h : T.RightContinuous) (a : I) : T.mul a a = a ↔ �
       exact hp; exact hp
     exact tendsto_nhds_unique hmul ha
 
+
 lemma arch_of_lp : HasLimitProperty T → IsArchimedean T := by
   intro h p q hpnt hqnt
   specialize h p hpnt
@@ -306,7 +289,6 @@ lemma arch_of_lp : HasLimitProperty T → IsArchimedean T := by
     _ = (T.npow N p).1 - 0 := by ring
     _ ≤ |(T.npow N p).1 - 0| := by apply le_abs_self
     _ < q := h
-
 
 lemma lp_of_arch : IsArchimedean T → HasLimitProperty T := by
   intro h p hpnt
@@ -335,11 +317,13 @@ lemma lp_of_arch : IsArchimedean T → HasLimitProperty T := by
     _ ≤ T.npow N p := by exact T.npow_le_self N n p hn
     _ < ε := h
 
+-- Theorem 2.12
 lemma arch_iff_lp : IsArchimedean T ↔ HasLimitProperty T := by
   constructor
   exact lp_of_arch T
   exact arch_of_lp T
 
+-- Proposition 2.15 (ii)
 lemma arch_of_cont_cond_canc : T.RightContinuous → ConditionalCancellative T → IsArchimedean T := by
   intro hc hcc
   apply arch_of_lp
@@ -369,9 +353,9 @@ lemma arch_of_cont_cond_canc : T.RightContinuous → ConditionalCancellative T �
   have hp : p ≠ 1 := hpnt.2
   contradiction
 
-
-lemma arch_of_cont_nntid : ¬ HasNontrivialIdempotent T → T.RightContinuous → IsArchimedean T := by
-  intro h hc
+-- Proposition 2.15 (i)
+lemma arch_of_cont_nntid : T.RightContinuous → ¬ HasNontrivialIdempotent T → IsArchimedean T := by
+  intro hc h
   unfold HasNontrivialIdempotent at h; push_neg at h
   apply arch_of_lp
   intro p hpnt
@@ -404,15 +388,26 @@ lemma arch_of_cont_nntid : ¬ HasNontrivialIdempotent T → T.RightContinuous �
   specialize h hant
   contradiction
 
-
+-- Proposition 2.15 (iv)
 lemma arch_of_strict : Strict T → IsArchimedean T := by
   intro h
   obtain ⟨h1, h2⟩ := h
   apply arch_of_cont_nntid
-  apply nntid_of_strictly_mono T h2
   exact Tnorm.right_cont_of_cont T h1
+  apply nntid_of_strictly_mono T h2
 
+-- Proposition 2.15 (v)
+lemma arch_of_all_nilpt_els : (∀ p : I, IsNontrivial p → ∃ n : ℕ, T.npow n p = 0) → IsArchimedean T := by
+  intro h
+  intro p q hpnt hqnt
+  specialize h p hpnt
+  obtain ⟨n, h⟩ := h
+  use n
+  apply And.left at hqnt
+  apply unitInterval.pos_iff_ne_zero.mpr at hqnt
+  rw [h]; exact hqnt
 
+-- The next three theorems encompass the result of Theorem 2.18
 theorem nilpt_of_cont_arch_zd (T : Tnorm) : T.Continuous → IsArchimedean T → HasZeroDivisors T → Nilpotent T := by
   intro hc h hzd
   constructor
@@ -507,3 +502,16 @@ theorem nilpt_or_strict_of_cont_arch (T : Tnorm) : T.Continuous → IsArchimedea
   by_cases hzd : HasZeroDivisors T
   left; exact nilpt_of_cont_arch_zd T hc harch hzd
   right; exact strict_of_cont_arch_nzd T hc harch hzd
+
+
+lemma arch_of_nilpt : Nilpotent T → IsArchimedean T := by
+  intro h
+  apply arch_of_all_nilpt_els
+  apply And.right at h
+  exact h
+
+lemma nntid_of_nilpt : Nilpotent T → ¬ HasNontrivialIdempotent T := by
+  intro h
+  apply arch_of_nilpt at h
+  apply nntid_of_arch at h
+  exact h

@@ -91,11 +91,6 @@ lemma ipow_le (n : ℕ) {p q : I} : p ≤ q → T.ipow n p ≤ T.ipow n q := by
 
 variable {T : ContinuousTnorm}
 
-lemma npow_I_one (T : Tnorm) (n : ℕ) : T.npow n 1 = 1 := by
-  induction' n with n ih
-  exact T.npow_zero 1
-  rw [T.npow_succ, T.one_mul, ih]
-
 lemma lt_of_npow_lt (T : Tnorm) (n : ℕ) (p q : I) : T.npow n p < T.npow n q → p < q := by
   contrapose!
   exact T.npow_le n q p

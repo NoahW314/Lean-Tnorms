@@ -9,8 +9,8 @@ define some basic T-norms:
   * the product T-norm
   * the Minimum (or Godel) T-norm
   * the Łukasiewicz T-norm
-  * the nilpotent minimum T-norm
   * the drastic T-norm
+  * the nilpotent minimum T-norm
 -/
 namespace Tnorm
 
@@ -22,11 +22,15 @@ def ProdTnorm' : Tnorm where
   mul_le_mul_left p q := by
     intro h r
     exact mul_le_mul_of_nonneg_left h r.2.1
-/-theorem prod_cont : ProdTnorm'.Continuous := by
+theorem prod_cont : ProdTnorm'.Continuous := by
   apply (cont_def ProdTnorm').mpr
-  sorry
-def ProdTnorm : ContinuousTnorm := ProdTnorm'.toContinuousTnorm prod_cont-/
-def ProdTnorm := ProdTnorm'
+  have hprod : (Function.uncurry ProdTnorm'.mul) = (fun p : I×I => p.1*p.2) := by rfl
+  rw [hprod]
+  apply Continuous.subtype_mk ?_ ?_
+  exact Continuous.mul (Continuous.fst' continuous_subtype_val) (Continuous.snd' continuous_subtype_val)
+  intro x; exact unitInterval.mul_mem (Subtype.coe_prop x.1) (Subtype.coe_prop x.2)
+def ProdTnorm : ContinuousTnorm := ProdTnorm'.toContinuousTnorm prod_cont
+theorem prod_tnorm_def (p q : I) : ProdTnorm.mul p q = p*q := by rfl
 
 def MinTnorm' : Tnorm where
     mul p q := min p q
@@ -40,6 +44,7 @@ def MinTnorm' : Tnorm where
       simp only [le_inf_iff, inf_le_left, inf_le_iff, true_and]; right; exact h
 theorem min_cont : MinTnorm'.Continuous := (cont_def MinTnorm').mpr continuous_min
 def MinTnorm : ContinuousTnorm := MinTnorm'.toContinuousTnorm min_cont
+theorem min_tnorm_def (p q : I) : MinTnorm.mul p q = p ⊓ q := by rfl
 
 lemma luk_max_mem_I (p q : I) : (max 0 (p.1+q-1)) ∈ I := by
   simp only [Set.mem_Icc, le_sup_left, sup_le_iff, zero_le_one, tsub_le_iff_right, true_and]
@@ -128,10 +133,11 @@ theorem luk_cont : LukTnorm'.Continuous := by
   apply Continuous.add (Continuous.fst' continuous_subtype_val) (Continuous.snd' continuous_subtype_val)
   exact continuous_const
 def LukTnorm : ContinuousTnorm := LukTnorm'.toContinuousTnorm luk_cont
+theorem luk_tnorm_def (p q : I) : LukTnorm.mul p q = 0 ⊔ (p.1+q-1) := by rfl
 
 
 
-noncomputable def ProdFuzzy : FuzzyLogic ProdTnorm where
+noncomputable def ProdFuzzy : FuzzyLogic ProdTnorm.toTnorm where
   and_def p q := by rfl
   imp_def p q := by rfl
 noncomputable def MinFuzzy : FuzzyLogic MinTnorm.toTnorm where
@@ -207,7 +213,7 @@ def DrasticTnorm : Tnorm where
         _ ≤ q := h
         _ < 1 := unitInterval.lt_one_iff_ne_one.mpr hq
       simp only [hr, hp, or_self, ↓reduceIte, hq, le_refl]
-
+lemma drastic_def (p q : I) : DrasticTnorm.mul p q = (if p = 1 ∨ q = 1 then min p q else 0) := by rfl
 
 lemma luk_imp_min_I (p q : I) : 1 ⊓ (1-p.1+q) ∈ I := by
   constructor
